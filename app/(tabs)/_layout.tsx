@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import React from "react";
+import { Easing } from "react-native";
 
 import { HapticTab } from "@/components/haptic-tab";
 import { Colors } from "@/constants/theme";
@@ -15,6 +16,14 @@ export default function TabLayout() {
 				tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
 				headerShown: false,
 				tabBarButton: HapticTab,
+				animation: "shift",
+				transitionSpec: {
+					animation: "timing",
+					config: {
+						duration: 220,
+						easing: Easing.inOut(Easing.ease),
+					},
+				},
 			}}
 		>
 			<Tabs.Screen

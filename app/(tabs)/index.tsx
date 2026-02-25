@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { database } from "@/database";
 import type Category from "@/database/models/Category";
 import { useExpenses } from "@/hooks/useExpenses";
+import { usePrefs } from "@/hooks/usePrefs";
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -26,13 +27,14 @@ function getGreeting() {
 export default function HomeScreen() {
 	const insets = useSafeAreaInsets();
 	const expenses = useExpenses();
+	const prefs = usePrefs();
 	const [categories, setCategories] = React.useState<Category[]>([]);
 
 	React.useEffect(() => {
 		database.get<Category>("categories").query().fetch().then(setCategories);
 	}, []);
 
-	const { todayTotal, weekTotal, thisWeekData, categoryTotals } =
+	const { todayTotal, weekTotal, thisWeekData, weekLabels, categoryTotals } =
 		useMemo(() => {
 			const now = new Date();
 			const startOfToday = new Date(
@@ -40,8 +42,14 @@ export default function HomeScreen() {
 				now.getMonth(),
 				now.getDate(),
 			).getTime();
+			const weekStartIndex = prefs.weekStart === "Monday" ? 1 : 0;
+			const weekLabels =
+				weekStartIndex === 1
+					? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+					: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 			const startOfWeek = new Date(startOfToday);
-			startOfWeek.setDate(startOfWeek.getDate() - now.getDay());
+			const daysSinceStart = (now.getDay() - weekStartIndex + 7) % 7;
+			startOfWeek.setDate(startOfWeek.getDate() - daysSinceStart);
 
 			let todayTotal = 0;
 			let weekTotal = 0;
@@ -54,7 +62,8 @@ export default function HomeScreen() {
 				if (exp.date >= startOfToday) todayTotal += val;
 				if (exp.date >= startOfWeek.getTime()) {
 					weekTotal += val;
-					weekDaysArr[expDate.getDay()] += val;
+					const weekDayIndex = (expDate.getDay() - weekStartIndex + 7) % 7;
+					weekDaysArr[weekDayIndex] += val;
 				}
 				catGraph[exp.categoryId] = (catGraph[exp.categoryId] || 0) + val;
 			});
@@ -77,9 +86,10 @@ export default function HomeScreen() {
 				todayTotal,
 				weekTotal,
 				thisWeekData: weekDaysArr,
+				weekLabels,
 				categoryTotals: topCats,
 			};
-		}, [expenses, categories]);
+		}, [expenses, categories, prefs.weekStart]);
 
 	return (
 		<ScrollView
@@ -140,7 +150,7 @@ export default function HomeScreen() {
 					</Text>
 					<LineChart
 						data={{
-							labels: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+							labels: weekLabels,
 							datasets: [{ data: thisWeekData }],
 						}}
 						width={screenWidth - 80}
