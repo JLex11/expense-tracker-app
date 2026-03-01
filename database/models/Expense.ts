@@ -5,11 +5,13 @@ import {
 	readonly,
 	relation,
 } from "@nozbe/watermelondb/decorators";
+import type { ExpenseOrigin, ExpenseStatus } from "@/types/expenses";
 
 export default class Expense extends Model {
 	static table = "expenses";
 	static associations = {
 		categories: { type: "belongs_to", key: "category_id" },
+		recurring_expense_rules: { type: "belongs_to", key: "recurring_rule_id" },
 	} as const;
 
 	@field("amount") amount!: number;
@@ -17,9 +19,14 @@ export default class Expense extends Model {
 	@field("date") date!: number;
 	@field("note") note!: string | null;
 	@field("payment_method") paymentMethod!: string;
+	@field("status") status!: ExpenseStatus;
+	@field("origin") origin!: ExpenseOrigin;
+	@field("recurring_rule_id") recurringRuleId!: string | null;
+	@field("resolved_at") resolvedAt!: number | null;
 
 	@readonly @date("created_at") createdAt!: Date;
 	@readonly @date("updated_at") updatedAt!: Date;
 
 	@relation("categories", "category_id") category!: any;
+	@relation("recurring_expense_rules", "recurring_rule_id") recurringRule!: any;
 }

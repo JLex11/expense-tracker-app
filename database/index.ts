@@ -2,10 +2,13 @@ import { Database } from "@nozbe/watermelondb";
 import SQLiteAdapter from "@nozbe/watermelondb/adapters/sqlite";
 import Category from "./models/Category";
 import Expense from "./models/Expense";
+import RecurringExpenseRule from "./models/RecurringExpenseRule";
+import { migrations } from "./migrations";
 import schema from "./schema";
 
 const adapter = new SQLiteAdapter({
 	schema,
+	migrations,
 	jsi: true /* use JSI for Expo SDK 52 */,
 	onSetUpError: (error) => {
 		console.error("Database setup error:", error);
@@ -14,7 +17,7 @@ const adapter = new SQLiteAdapter({
 
 export const database = new Database({
 	adapter,
-	modelClasses: [Category, Expense],
+	modelClasses: [Category, Expense, RecurringExpenseRule],
 });
 
 export const seedCategories = async () => {

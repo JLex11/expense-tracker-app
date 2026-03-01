@@ -3,10 +3,11 @@ import {
     DefaultTheme,
     ThemeProvider,
 } from "@react-navigation/native";
+import PendingRecurringPrompt from "@/components/pending-recurring-prompt";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as QuickActions from "expo-quick-actions";
 import { useQuickActionRouting } from "expo-quick-actions/router";
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, AppState, Platform } from "react-native";
@@ -16,6 +17,10 @@ import "./globals.css";
 import { seedCategories } from "@/database";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { savePrefs, usePrefs } from "@/hooks/usePrefs";
+import {
+	getPendingRecurringCount,
+	syncRecurringExpenses,
+} from "@/services/expenses";
 import { Text, TouchableOpacity, View } from "@/tw";
 import { exportExpensesCSV } from "@/utils/export-csv";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -27,12 +32,21 @@ export const unstable_settings = {
 export default function RootLayout() {
 	const colorScheme = useColorScheme();
 	const prefs = usePrefs();
-	const [isLocked, setIsLocked] = useState(false);
+	const router = useRouter();
+	const [isLocked, setIsLocked] = useState(
+		() => Platform.OS !== "web" && prefs.appLockEnabled,
+	);
 	const [isAuthenticating, setIsAuthenticating] = useState(false);
 	const [lockMessage, setLockMessage] = useState<string | null>(null);
+	const [isPendingPromptVisible, setIsPendingPromptVisible] = useState(false);
+	const [pendingPromptCount, setPendingPromptCount] = useState(0);
+	const [pendingPromptQueued, setPendingPromptQueued] = useState(false);
 	const appStateRef = useRef(AppState.currentState);
 	const isAuthenticatingRef = useRef(false);
 	const hasCheckedInitialLockRef = useRef(false);
+	const hasShownPendingPromptThisCycleRef = useRef(false);
+	const isSyncingRecurringRef = useRef(false);
+	const isLockedRef = useRef(isLocked);
 	const prefsRef = useRef(prefs);
 
 	useQuickActionRouting();
@@ -84,6 +98,10 @@ export default function RootLayout() {
 	useEffect(() => {
 		prefsRef.current = prefs;
 	}, [prefs]);
+
+	useEffect(() => {
+		isLockedRef.current = isLocked;
+	}, [isLocked]);
 
 	const disableAppLock = useCallback(() => {
 		const currentPrefs = prefsRef.current;
@@ -149,6 +167,67 @@ export default function RootLayout() {
 		seedCategories().catch(console.error);
 	}, []);
 
+	const syncRecurringState = useCallback(async () => {
+		if (isSyncingRecurringRef.current) {
+			return;
+		}
+
+		isSyncingRecurringRef.current = true;
+
+		try {
+			const { pendingCount } = await syncRecurringExpenses();
+			setPendingPromptCount(pendingCount);
+
+			if (pendingCount === 0) {
+				setPendingPromptQueued(false);
+				setIsPendingPromptVisible(false);
+				return;
+			}
+
+			if (isLockedRef.current) {
+				setPendingPromptQueued(true);
+				return;
+			}
+
+			if (!hasShownPendingPromptThisCycleRef.current) {
+				hasShownPendingPromptThisCycleRef.current = true;
+				setIsPendingPromptVisible(true);
+			}
+		} catch (error) {
+			console.error("Failed to sync recurring expenses", error);
+		} finally {
+			isSyncingRecurringRef.current = false;
+		}
+	}, []);
+
+	const queueOrShowPendingPrompt = useCallback(
+		async (forceRefreshCount = false) => {
+			const nextCount = forceRefreshCount
+				? await getPendingRecurringCount()
+				: pendingPromptCount;
+
+			setPendingPromptCount(nextCount);
+
+			if (nextCount === 0) {
+				setPendingPromptQueued(false);
+				setIsPendingPromptVisible(false);
+				return;
+			}
+
+			if (isLockedRef.current) {
+				setPendingPromptQueued(true);
+				return;
+			}
+
+			if (!hasShownPendingPromptThisCycleRef.current) {
+				hasShownPendingPromptThisCycleRef.current = true;
+				setPendingPromptQueued(false);
+				setIsPendingPromptVisible(true);
+			}
+		},
+		[pendingPromptCount],
+	);
+
 	useEffect(() => {
 		if (Platform.OS === "web") {
 			if (prefs.appLockEnabled) {
@@ -176,24 +255,53 @@ export default function RootLayout() {
 	}, [prefs.appLockEnabled, authenticateToUnlock, disableAppLock]);
 
 	useEffect(() => {
+		void syncRecurringState();
+	}, [syncRecurringState]);
+
+	useEffect(() => {
+		if (!isLocked && pendingPromptQueued) {
+			void queueOrShowPendingPrompt(true);
+		}
+	}, [isLocked, pendingPromptQueued, queueOrShowPendingPrompt]);
+
+	useEffect(() => {
 		if (Platform.OS === "web") return;
 
 		const subscription = AppState.addEventListener("change", (nextState) => {
 			const prevState = appStateRef.current;
 			appStateRef.current = nextState;
 
+			if (nextState === "background" || nextState === "inactive") {
+				hasShownPendingPromptThisCycleRef.current = false;
+				setIsPendingPromptVisible(false);
+			}
+
 			const becameActive =
 				(prevState === "background" || prevState === "inactive") &&
 				nextState === "active";
 
 			if (becameActive && prefsRef.current.appLockEnabled) {
+				isLockedRef.current = true;
 				setIsLocked(true);
 				void authenticateToUnlock();
+			}
+
+			if (becameActive) {
+				void syncRecurringState();
 			}
 		});
 
 		return () => subscription.remove();
-	}, [authenticateToUnlock]);
+	}, [authenticateToUnlock, syncRecurringState]);
+
+	const handlePendingPromptLater = useCallback(() => {
+		setIsPendingPromptVisible(false);
+	}, []);
+
+	const handlePendingPromptReview = useCallback(() => {
+		setIsPendingPromptVisible(false);
+		router.push("/(tabs)/budget");
+	}, [router]);
 
 	return (
 		<SafeAreaProvider>
@@ -243,6 +351,12 @@ export default function RootLayout() {
 							</View>
 						</View>
 					)}
+					<PendingRecurringPrompt
+						visible={isPendingPromptVisible}
+						pendingCount={pendingPromptCount}
+						onLater={handlePendingPromptLater}
+						onReview={handlePendingPromptReview}
+					/>
 				</View>
 				<StatusBar style="auto" />
 			</ThemeProvider>

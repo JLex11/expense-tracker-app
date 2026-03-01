@@ -1,12 +1,15 @@
+import RecurrenceEditor from "@/components/recurrence-editor";
 import { database } from "@/database";
 import type Category from "@/database/models/Category";
-import type Expense from "@/database/models/Expense";
+import { createExpenseWithOptionalRecurrence } from "@/services/expenses";
+import type { RecurrenceUnit, RecurringRuleInput } from "@/types/expenses";
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from "@/tw";
+import { parseRecurrenceInterval } from "@/utils/recurrence";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert } from "react-native";
+import { Alert, Switch } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function TransactScreen() {
@@ -18,6 +21,9 @@ export default function TransactScreen() {
 	const [showDatePicker, setShowDatePicker] = useState(false);
 	const [paymentMethod, setPaymentMethod] = useState("card");
 	const [note, setNote] = useState("");
+	const [isRecurring, setIsRecurring] = useState(false);
+	const [recurrenceIntervalValue, setRecurrenceIntervalValue] = useState("1");
+	const [recurrenceUnit, setRecurrenceUnit] = useState<RecurrenceUnit>("month");
 	const [categories, setCategories] = useState<Category[]>([]);
 
 	useEffect(() => {
@@ -35,31 +41,41 @@ export default function TransactScreen() {
 			return;
 		}
 
+		let recurrence: RecurringRuleInput | null = null;
+		if (isRecurring) {
+			const parsedInterval = parseRecurrenceInterval(recurrenceIntervalValue);
+			if (!parsedInterval) {
+				Alert.alert("Error", "Ingresa un intervalo válido para la recurrencia");
+				return;
+			}
+
+			recurrence = {
+				intervalValue: parsedInterval,
+				intervalUnit: recurrenceUnit,
+			};
+		}
+
 		try {
-			let createdExpenseId: string | null = null;
-
-			await database.write(async () => {
-				const createdExpense = await database
-					.get<Expense>("expenses")
-					.create((expense) => {
-						expense.amount = Number(amount);
-						expense.categoryId = selectedCategory;
-						expense.date = date.getTime();
-						expense.note = note;
-						expense.paymentMethod = paymentMethod;
-					});
-
-				createdExpenseId = createdExpense.id;
+			const { expenseId } = await createExpenseWithOptionalRecurrence({
+				amount: Number(amount),
+				categoryId: selectedCategory,
+				date: date.getTime(),
+				note,
+				paymentMethod,
+				recurrence,
 			});
 
 			setAmount("");
 			setNote("");
 			setSelectedCategory(null);
+			setIsRecurring(false);
+			setRecurrenceIntervalValue("1");
+			setRecurrenceUnit("month");
 
-			if (createdExpenseId) {
+			if (expenseId) {
 				router.push({
 					pathname: "/movement/[id]",
-					params: { id: createdExpenseId },
+					params: { id: expenseId },
 				});
 			}
 		} catch (e) {
@@ -196,6 +212,30 @@ export default function TransactScreen() {
 					value={note}
 					onChangeText={setNote}
 				/>
+
+				<View className="mt-4 rounded-3xl border border-gray-100 bg-gray-50 p-5">
+					<View className="mb-4 flex-row items-center justify-between">
+						<View className="pr-4">
+							<Text className="font-semibold text-gray-900">
+								Gasto recurrente
+							</Text>
+							<Text className="mt-1 text-sm leading-5 text-gray-500">
+								Guarda este gasto ahora y crea los próximos como pendientes.
+							</Text>
+						</View>
+						<Switch value={isRecurring} onValueChange={setIsRecurring} />
+					</View>
+
+					{isRecurring ? (
+						<RecurrenceEditor
+							intervalValue={recurrenceIntervalValue}
+							intervalUnit={recurrenceUnit}
+							onChangeIntervalValue={setRecurrenceIntervalValue}
+							onChangeIntervalUnit={setRecurrenceUnit}
+							helperText="El gasto actual se guarda ahora; los siguientes se crearán como pendientes."
+						/>
+					) : null}
+				</View>
 			</View>
 
 			<TouchableOpacity
