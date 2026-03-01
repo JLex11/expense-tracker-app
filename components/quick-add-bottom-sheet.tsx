@@ -1,8 +1,11 @@
+import RecurrenceEditor from "@/components/recurrence-editor";
 import { useQuickAdd } from "@/contexts/quick-add";
 import { database } from "@/database";
 import type Category from "@/database/models/Category";
-import type Expense from "@/database/models/Expense";
+import { createExpenseWithOptionalRecurrence } from "@/services/expenses";
+import type { RecurrenceUnit, RecurringRuleInput } from "@/types/expenses";
 import { Text, TouchableOpacity, View } from "@/tw";
+import { parseRecurrenceInterval } from "@/utils/recurrence";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as Haptics from "expo-haptics";
@@ -17,6 +20,7 @@ import {
     Platform,
     Pressable,
     StyleSheet,
+    Switch,
     TextInput,
 } from "react-native";
 import Animated, {
@@ -46,6 +50,9 @@ export default function QuickAddDialog() {
 	const [date, setDate] = useState(new Date());
 	const [showDatePicker, setShowDatePicker] = useState(false);
 	const [note, setNote] = useState("");
+	const [isRecurring, setIsRecurring] = useState(false);
+	const [recurrenceIntervalValue, setRecurrenceIntervalValue] = useState("1");
+	const [recurrenceUnit, setRecurrenceUnit] = useState<RecurrenceUnit>("month");
 	const [categories, setCategories] = useState<Category[]>([]);
 	const contentHeight = useSharedValue(0);
 
@@ -86,6 +93,9 @@ export default function QuickAddDialog() {
 			setSelectedCategory(null);
 			setDate(new Date());
 			setNote("");
+			setIsRecurring(false);
+			setRecurrenceIntervalValue("1");
+			setRecurrenceUnit("month");
 			setShowDatePicker(false);
 		}, 200);
 	}, [close]);
@@ -126,28 +136,37 @@ export default function QuickAddDialog() {
 			return;
 		}
 
+		let recurrence: RecurringRuleInput | null = null;
+		if (isRecurring) {
+			const parsedInterval = parseRecurrenceInterval(recurrenceIntervalValue);
+			if (!parsedInterval) {
+				Alert.alert("Error", "Ingresa un intervalo válido para la recurrencia");
+				return;
+			}
+
+			recurrence = {
+				intervalValue: parsedInterval,
+				intervalUnit: recurrenceUnit,
+			};
+		}
+
 		try {
-			let createdExpenseId: string | null = null;
-			await database.write(async () => {
-				const created = await database
-					.get<Expense>("expenses")
-					.create((expense) => {
-						expense.amount = Number(amount);
-						expense.categoryId = selectedCategory;
-						expense.date = date.getTime();
-						expense.note = note;
-						expense.paymentMethod = paymentMethod;
-					});
-				createdExpenseId = created.id;
+			const { expenseId } = await createExpenseWithOptionalRecurrence({
+				amount: Number(amount),
+				categoryId: selectedCategory,
+				date: date.getTime(),
+				note,
+				paymentMethod,
+				recurrence,
 			});
 
 			Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 			resetAndClose();
 
-			if (createdExpenseId) {
+			if (expenseId) {
 				router.push({
 					pathname: "/movement/[id]",
-					params: { id: createdExpenseId },
+					params: { id: expenseId },
 				});
 			}
 		} catch {
@@ -159,6 +178,9 @@ export default function QuickAddDialog() {
 		date,
 		note,
 		paymentMethod,
+		isRecurring,
+		recurrenceIntervalValue,
+		recurrenceUnit,
 		resetAndClose,
 		router,
 	]);
@@ -393,6 +415,34 @@ export default function QuickAddDialog() {
 										value={note}
 										onChangeText={setNote}
 									/>
+
+									<View className="mt-3 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+										<View className="mb-4 flex-row items-center justify-between">
+											<View className="mr-4 flex-1">
+												<Text className="font-semibold text-gray-900">
+													Gasto recurrente
+												</Text>
+												<Text className="mt-1 text-sm leading-5 text-gray-500">
+													Guarda este gasto ahora y crea los próximos como
+													pendientes.
+												</Text>
+											</View>
+											<Switch
+												value={isRecurring}
+												onValueChange={setIsRecurring}
+											/>
+										</View>
+
+										{isRecurring ? (
+											<RecurrenceEditor
+												intervalValue={recurrenceIntervalValue}
+												intervalUnit={recurrenceUnit}
+												onChangeIntervalValue={setRecurrenceIntervalValue}
+												onChangeIntervalUnit={setRecurrenceUnit}
+												helperText="El gasto actual se guarda ahora; los siguientes se crearán como pendientes."
+											/>
+										) : null}
+									</View>
 
 									<View className="flex-row items-center justify-between px-2 mt-3 mb-3">
 										<Text className="text-sm text-gray-500">Total</Text>

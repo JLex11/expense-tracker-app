@@ -1,13 +1,17 @@
 import { database } from "@/database";
 import type Category from "@/database/models/Category";
 import type Expense from "@/database/models/Expense";
+import { Q } from "@nozbe/watermelondb";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { Alert } from "react-native";
 
 export async function exportExpensesCSV() {
 	try {
-		const expenses = await database.get<Expense>("expenses").query().fetch();
+		const expenses = await database
+			.get<Expense>("expenses")
+			.query(Q.where("status", "confirmed"))
+			.fetch();
 		const categories = await database
 			.get<Category>("categories")
 			.query()
