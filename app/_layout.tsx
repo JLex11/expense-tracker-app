@@ -1,12 +1,14 @@
 import {
-	DarkTheme,
-	DefaultTheme,
-	ThemeProvider,
+    DarkTheme,
+    DefaultTheme,
+    ThemeProvider,
 } from "@react-navigation/native";
+import * as LocalAuthentication from "expo-local-authentication";
+import * as QuickActions from "expo-quick-actions";
+import { useQuickActionRouting } from "expo-quick-actions/router";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import * as LocalAuthentication from "expo-local-authentication";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, AppState, Platform } from "react-native";
 import "react-native-reanimated";
 import "./globals.css";
@@ -15,6 +17,7 @@ import { seedCategories } from "@/database";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { savePrefs, usePrefs } from "@/hooks/usePrefs";
 import { Text, TouchableOpacity, View } from "@/tw";
+import { exportExpensesCSV } from "@/utils/export-csv";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 export const unstable_settings = {
@@ -31,6 +34,52 @@ export default function RootLayout() {
 	const isAuthenticatingRef = useRef(false);
 	const hasCheckedInitialLockRef = useRef(false);
 	const prefsRef = useRef(prefs);
+
+	useQuickActionRouting();
+
+	useEffect(() => {
+		QuickActions.setItems([
+			{
+				id: "add_expense",
+				title: "Agregar gasto",
+				icon:
+					Platform.OS === "ios" ? "symbol:plus.circle.fill" : "shortcut_add",
+				params: { href: "/quick-add" },
+			},
+			{
+				id: "view_budget",
+				title: "Ver presupuesto",
+				icon:
+					Platform.OS === "ios" ? "symbol:chart.pie.fill" : "shortcut_budget",
+				params: { href: "/(tabs)/budget" },
+			},
+			{
+				id: "search",
+				title: "Buscar transacciones",
+				icon:
+					Platform.OS === "ios" ? "symbol:magnifyingglass" : "shortcut_search",
+				params: { href: "/(tabs)/budget" },
+			},
+			{
+				id: "export_csv",
+				title: "Exportar CSV",
+				icon:
+					Platform.OS === "ios"
+						? "symbol:square.and.arrow.up"
+						: "shortcut_export",
+				params: { href: "/(tabs)/profile" },
+			},
+		]);
+	}, []);
+
+	useEffect(() => {
+		const subscription = QuickActions.addListener((action) => {
+			if (action.id === "export_csv") {
+				exportExpensesCSV();
+			}
+		});
+		return () => subscription.remove();
+	}, []);
 
 	useEffect(() => {
 		prefsRef.current = prefs;
@@ -153,19 +202,33 @@ export default function RootLayout() {
 					<Stack>
 						<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 						<Stack.Screen
+							name="movement/[id]"
+							options={{ headerShown: false }}
+						/>
+						<Stack.Screen
+							name="quick-add"
+							options={{
+								presentation: "transparentModal",
+								headerShown: false,
+								animation: "fade",
+							}}
+						/>
+						<Stack.Screen
 							name="modal"
 							options={{ presentation: "modal", title: "Modal" }}
 						/>
 					</Stack>
 					{isLocked && (
 						<View className="absolute inset-0 items-center justify-center bg-slate-900/90 px-6">
-							<View className="w-full max-w-[340px] rounded-[20px] border border-white/20 bg-slate-900 p-6">
-								<Text className="mb-2 text-2xl font-bold text-white">App Locked</Text>
-								<Text className="mb-5 text-[15px] leading-[22px] text-gray-300">
+							<View className="w-full max-w-85 rounded-[20px] border border-white/20 bg-slate-900 p-6">
+								<Text className="mb-2 text-2xl font-bold text-white">
+									App Locked
+								</Text>
+								<Text className="mb-5 text-[15px] leading-5.5 text-gray-300">
 									{lockMessage ?? "Authenticate to continue"}
 								</Text>
 								<TouchableOpacity
-									className="min-h-[46px] items-center justify-center rounded-xl bg-blue-600 py-3"
+									className="min-h-11.5 items-center justify-center rounded-xl bg-blue-600 py-3"
 									onPress={() => void authenticateToUnlock()}
 									disabled={isAuthenticating}
 								>

@@ -1,3 +1,4 @@
+import InfoWidget from "@/components/info-widget";
 import { database } from "@/database";
 import type Category from "@/database/models/Category";
 import { useExpenses } from "@/hooks/useExpenses";
@@ -28,7 +29,7 @@ export default function HomeScreen() {
 		database.get<Category>("categories").query().fetch().then(setCategories);
 	}, []);
 
-	const { todayTotal, weekTotal, thisWeekData, weekLabels, categoryTotals } =
+	const { weekTotal, thisWeekData, weekLabels, categoryTotals } =
 		useMemo(() => {
 			const now = new Date();
 			const startOfToday = new Date(
@@ -110,37 +111,7 @@ export default function HomeScreen() {
 				</TouchableOpacity>
 			</View>
 
-			<View className="flex-row gap-4 px-5 mb-8">
-				<View className="flex-1 p-5 bg-blue-500 rounded-3xl">
-					<View className="flex-row items-center mb-3">
-						<Ionicons
-							name="calendar"
-							size={16}
-							color="white"
-							style={{ marginRight: 6 }}
-						/>
-						<Text className="font-medium text-blue-100">Today</Text>
-					</View>
-					<Text className="text-[28px] font-bold text-white">
-						${todayTotal.toFixed(2)}
-					</Text>
-				</View>
-
-				<View className="flex-1 p-5 bg-white border border-gray-100 rounded-3xl">
-					<View className="flex-row items-center mb-3">
-						<Ionicons
-							name="calendar-outline"
-							size={16}
-							color="#6b7280"
-							style={{ marginRight: 6 }}
-						/>
-						<Text className="font-medium text-gray-500">This Week</Text>
-					</View>
-					<Text className="text-[28px] font-bold text-gray-800">
-						${weekTotal.toFixed(2)}
-					</Text>
-				</View>
-			</View>
+			<InfoWidget categories={categories} />
 
 			<View className="px-5 mb-8">
 				<View className="p-5 bg-white border border-gray-100 rounded-3xl">
