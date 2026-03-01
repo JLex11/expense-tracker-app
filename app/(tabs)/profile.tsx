@@ -1,503 +1,318 @@
 import { database } from "@/database";
 import type Category from "@/database/models/Category";
 import type Expense from "@/database/models/Expense";
-import {
-	savePrefs,
-	type Prefs,
-	type WeekStart,
-	usePrefs,
-} from "@/hooks/usePrefs";
+import { savePrefs, type Prefs, type WeekStart, usePrefs } from "@/hooks/usePrefs";
+import { ScrollView, Text, TextInput, TouchableOpacity, View } from "@/tw";
 import { Ionicons } from "@expo/vector-icons";
 import * as FileSystem from "expo-file-system";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as Sharing from "expo-sharing";
 import React, { useState } from "react";
 import {
-	Alert,
-	KeyboardAvoidingView,
-	Modal,
-	Platform,
-	ScrollView,
-	StyleSheet,
-	Switch,
-	Text,
-	TextInput,
-	TouchableOpacity,
-	View,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Switch,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const CURRENCIES = ["USD", "EUR", "GBP", "MXN", "CAD", "AUD", "JPY", "BRL", "CNY", "INR"];
+const CURRENCIES = [
+  "USD",
+  "EUR",
+  "GBP",
+  "MXN",
+  "CAD",
+  "AUD",
+  "JPY",
+  "BRL",
+  "CNY",
+  "INR",
+];
 const WEEK_DAYS: WeekStart[] = ["Sunday", "Monday"];
 
 export default function ProfileScreen() {
-	const insets = useSafeAreaInsets();
-	const prefs = usePrefs();
+  const insets = useSafeAreaInsets();
+  const prefs = usePrefs();
 
-	const [editProfileVisible, setEditProfileVisible] = useState(false);
-	const [currencyPickerVisible, setCurrencyPickerVisible] = useState(false);
-	const [editName, setEditName] = useState("");
-	const [editEmail, setEditEmail] = useState("");
+  const [editProfileVisible, setEditProfileVisible] = useState(false);
+  const [currencyPickerVisible, setCurrencyPickerVisible] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
 
-	const updatePrefs = (updates: Partial<Prefs>) => {
-		const next = { ...prefs, ...updates };
-		savePrefs(next);
-	};
+  const updatePrefs = (updates: Partial<Prefs>) => {
+    const next = { ...prefs, ...updates };
+    savePrefs(next);
+  };
 
-	// ── Edit Profile ──────────────────────────────────────────────────────────
+  const openEditProfile = () => {
+    setEditName(prefs.name);
+    setEditEmail(prefs.email);
+    setEditProfileVisible(true);
+  };
 
-	const openEditProfile = () => {
-		setEditName(prefs.name);
-		setEditEmail(prefs.email);
-		setEditProfileVisible(true);
-	};
+  const saveProfile = () => {
+    const name = editName.trim() || prefs.name;
+    const email = editEmail.trim() || prefs.email;
+    updatePrefs({ name, email });
+    setEditProfileVisible(false);
+  };
 
-	const saveProfile = () => {
-		const name = editName.trim() || prefs.name;
-		const email = editEmail.trim() || prefs.email;
-		updatePrefs({ name, email });
-		setEditProfileVisible(false);
-	};
+  const openWeekStartPicker = () => {
+    Alert.alert("Week Starts On", "Choose the first day of your week", [
+      ...WEEK_DAYS.map((day) => ({
+        text: day === prefs.weekStart ? `${day} ✓` : day,
+        onPress: () => updatePrefs({ weekStart: day }),
+      })),
+      { text: "Cancel", style: "cancel" as const },
+    ]);
+  };
 
-	// ── Week Start ────────────────────────────────────────────────────────────
+  const toggleAppLock = async () => {
+    const shouldEnable = !prefs.appLockEnabled;
 
-	const openWeekStartPicker = () => {
-		Alert.alert(
-			"Week Starts On",
-			"Choose the first day of your week",
-			[
-				...WEEK_DAYS.map((day) => ({
-					text: day === prefs.weekStart ? `${day} ✓` : day,
-					onPress: () => updatePrefs({ weekStart: day }),
-				})),
-				{ text: "Cancel", style: "cancel" as const },
-			],
-		);
-	};
+    if (Platform.OS === "web" && shouldEnable) {
+      Alert.alert("Not Supported", "App Lock is not available on web.");
+      return;
+    }
 
-	// ── App Lock ──────────────────────────────────────────────────────────────
+    try {
+      if (shouldEnable) {
+        const hasHardware = await LocalAuthentication.hasHardwareAsync();
+        const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+        if (!hasHardware || !isEnrolled) {
+          Alert.alert(
+            "Not Supported",
+            "Biometrics or device credentials are not set up on this device.",
+          );
+          return;
+        }
 
-	const toggleAppLock = async () => {
-		const shouldEnable = !prefs.appLockEnabled;
+        const result = await LocalAuthentication.authenticateAsync({
+          promptMessage: "Authenticate to enable App Lock",
+        });
+        if (result.success) updatePrefs({ appLockEnabled: true });
+        return;
+      }
 
-		if (Platform.OS === "web" && shouldEnable) {
-			Alert.alert(
-				"Not Supported",
-				"App Lock is not available on web.",
-			);
-			return;
-		}
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: "Authenticate to disable App Lock",
+      });
+      if (result.success) updatePrefs({ appLockEnabled: false });
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Authentication Error", "Unable to complete authentication.");
+    }
+  };
 
-		try {
-			if (shouldEnable) {
-				const hasHardware = await LocalAuthentication.hasHardwareAsync();
-				const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-				if (!hasHardware || !isEnrolled) {
-					Alert.alert(
-						"Not Supported",
-						"Biometrics or device credentials are not set up on this device.",
-					);
-					return;
-				}
-				const result = await LocalAuthentication.authenticateAsync({
-					promptMessage: "Authenticate to enable App Lock",
-				});
-				if (result.success) {
-					updatePrefs({ appLockEnabled: true });
-				}
-				return;
-			}
+  const handleExportCSV = async () => {
+    try {
+      const expenses = await database.get<Expense>("expenses").query().fetch();
+      const categories = await database.get<Category>("categories").query().fetch();
+      const header = "Date,Amount,Category,Payment Method,Note\n";
+      const rows = expenses
+        .map((exp) => {
+          const cat = categories.find((c) => c.id === exp.categoryId);
+          return `${new Date(exp.date).toLocaleString()},${exp.amount},${cat?.name || "Unknown"},${exp.paymentMethod},"${exp.note || ""}"`;
+        })
+        .join("\n");
 
-			const result = await LocalAuthentication.authenticateAsync({
-				promptMessage: "Authenticate to disable App Lock",
-			});
-			if (result.success) {
-				updatePrefs({ appLockEnabled: false });
-			}
-		} catch (error) {
-			console.error(error);
-			Alert.alert("Authentication Error", "Unable to complete authentication.");
-		}
-	};
+      const file = new FileSystem.File(FileSystem.Paths.document, "expenses_export.csv");
+      file.write(header + rows);
 
-	// ── Export CSV ────────────────────────────────────────────────────────────
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(file.uri);
+      } else {
+        Alert.alert("Sharing not available", "Cannot share CSV file on this device.");
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to export CSV. Please try again.");
+      console.error(error);
+    }
+  };
 
-	const handleExportCSV = async () => {
-		try {
-			const expenses = await database.get<Expense>("expenses").query().fetch();
-			const categories = await database
-				.get<Category>("categories")
-				.query()
-				.fetch();
-			const header = "Date,Amount,Category,Payment Method,Note\n";
-			const rows = expenses
-				.map((exp) => {
-					const cat = categories.find((c) => c.id === exp.categoryId);
-					return `${new Date(exp.date).toLocaleString()},${exp.amount},${cat?.name || "Unknown"},${exp.paymentMethod},"${exp.note || ""}"`;
-				})
-				.join("\n");
+  return (
+    <View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
+      <Modal
+        visible={editProfileVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setEditProfileVisible(false)}
+      >
+        <KeyboardAvoidingView
+          className="flex-1 justify-end bg-black/40"
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <View className="rounded-t-3xl bg-white px-6 pb-10 pt-6">
+            <Text className="mb-5 text-center text-lg font-bold text-gray-900">Edit Profile</Text>
 
-			const file = new FileSystem.File(FileSystem.Paths.document, "expenses_export.csv");
-			file.write(header + rows);
+            <Text className="mb-1.5 text-[13px] font-semibold text-gray-500">Name</Text>
+            <TextInput
+              className="mb-4 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-3 text-base text-gray-900"
+              value={editName}
+              onChangeText={setEditName}
+              placeholder="Your name"
+              placeholderTextColor="#9ca3af"
+              returnKeyType="next"
+            />
 
-			if (await Sharing.isAvailableAsync()) {
-				await Sharing.shareAsync(file.uri);
-			} else {
-				Alert.alert(
-					"Sharing not available",
-					"Cannot share CSV file on this device.",
-				);
-			}
-		} catch (error) {
-			Alert.alert("Error", "Failed to export CSV. Please try again.");
-			console.error(error);
-		}
-	};
+            <Text className="mb-1.5 text-[13px] font-semibold text-gray-500">Email</Text>
+            <TextInput
+              className="mb-4 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-3 text-base text-gray-900"
+              value={editEmail}
+              onChangeText={setEditEmail}
+              placeholder="your@email.com"
+              placeholderTextColor="#9ca3af"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              returnKeyType="done"
+              onSubmitEditing={saveProfile}
+            />
 
-	// ── Render ────────────────────────────────────────────────────────────────
+            <View className="mt-1 flex-row gap-3">
+              <TouchableOpacity
+                className="flex-1 items-center rounded-xl border border-gray-200 py-3.5"
+                onPress={() => setEditProfileVisible(false)}
+              >
+                <Text className="text-base font-semibold text-gray-500">Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity className="flex-1 items-center rounded-xl bg-blue-500 py-3.5" onPress={saveProfile}>
+                <Text className="text-base font-semibold text-white">Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
-	return (
-		<View style={[styles.container, { paddingTop: insets.top }]}>
-			{/* Edit Profile Modal */}
-			<Modal
-				visible={editProfileVisible}
-				animationType="slide"
-				transparent
-				onRequestClose={() => setEditProfileVisible(false)}
-			>
-				<KeyboardAvoidingView
-					style={styles.modalOverlay}
-					behavior={Platform.OS === "ios" ? "padding" : "height"}
-				>
-					<View style={styles.modalCard}>
-						<Text style={styles.modalTitle}>Edit Profile</Text>
+      <Modal
+        visible={currencyPickerVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setCurrencyPickerVisible(false)}
+      >
+        <View className="flex-1 justify-end bg-black/40">
+          <View className="rounded-t-3xl bg-white px-6 pb-10 pt-6">
+            <Text className="mb-5 text-center text-lg font-bold text-gray-900">Select Currency</Text>
 
-						<Text style={styles.inputLabel}>Name</Text>
-						<TextInput
-							style={styles.input}
-							value={editName}
-							onChangeText={setEditName}
-							placeholder="Your name"
-							placeholderTextColor="#9ca3af"
-							returnKeyType="next"
-						/>
+            {CURRENCIES.map((c) => {
+              const selected = c === prefs.currency;
+              return (
+                <TouchableOpacity
+                  key={c}
+                  className="flex-row items-center justify-between border-b border-gray-100 py-3.5"
+                  onPress={() => {
+                    updatePrefs({ currency: c });
+                    setCurrencyPickerVisible(false);
+                  }}
+                >
+                  <Text className={`text-base ${selected ? "font-bold text-blue-500" : "text-gray-700"}`}>
+                    {c}
+                  </Text>
+                  {selected && <Ionicons name="checkmark" size={20} color="#3b82f6" />}
+                </TouchableOpacity>
+              );
+            })}
 
-						<Text style={styles.inputLabel}>Email</Text>
-						<TextInput
-							style={styles.input}
-							value={editEmail}
-							onChangeText={setEditEmail}
-							placeholder="your@email.com"
-							placeholderTextColor="#9ca3af"
-							keyboardType="email-address"
-							autoCapitalize="none"
-							returnKeyType="done"
-							onSubmitEditing={saveProfile}
-						/>
+            <TouchableOpacity
+              className="mt-2 self-center rounded-xl border border-gray-200 px-8 py-3.5"
+              onPress={() => setCurrencyPickerVisible(false)}
+            >
+              <Text className="text-base font-semibold text-gray-500">Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
-						<View style={styles.modalActions}>
-							<TouchableOpacity
-								style={styles.modalCancelBtn}
-								onPress={() => setEditProfileVisible(false)}
-							>
-								<Text style={styles.modalCancelText}>Cancel</Text>
-							</TouchableOpacity>
-							<TouchableOpacity style={styles.modalSaveBtn} onPress={saveProfile}>
-								<Text style={styles.modalSaveText}>Save</Text>
-							</TouchableOpacity>
-						</View>
-					</View>
-				</KeyboardAvoidingView>
-			</Modal>
+      <View className="border-b border-gray-100 bg-white px-5 pb-4 pt-4">
+        <Text className="text-2xl font-bold text-gray-900">Settings</Text>
+      </View>
 
-			{/* Currency Picker Modal */}
-			<Modal
-				visible={currencyPickerVisible}
-				animationType="slide"
-				transparent
-				onRequestClose={() => setCurrencyPickerVisible(false)}
-			>
-				<View style={styles.modalOverlay}>
-					<View style={styles.modalCard}>
-						<Text style={styles.modalTitle}>Select Currency</Text>
-						{CURRENCIES.map((c) => (
-							<TouchableOpacity
-								key={c}
-								style={styles.currencyOption}
-								onPress={() => {
-									updatePrefs({ currency: c });
-									setCurrencyPickerVisible(false);
-								}}
-							>
-								<Text
-									style={[
-										styles.currencyText,
-										c === prefs.currency && styles.currencyTextSelected,
-									]}
-								>
-									{c}
-								</Text>
-								{c === prefs.currency && (
-									<Ionicons name="checkmark" size={20} color="#3b82f6" />
-								)}
-							</TouchableOpacity>
-						))}
-						<TouchableOpacity
-							style={[styles.modalCancelBtn, { marginTop: 8, alignSelf: "center" }]}
-							onPress={() => setCurrencyPickerVisible(false)}
-						>
-							<Text style={styles.modalCancelText}>Cancel</Text>
-						</TouchableOpacity>
-					</View>
-				</View>
-			</Modal>
+      <ScrollView contentContainerClassName="pb-24">
+        <View className="items-center border-b border-gray-100 bg-white py-8">
+          <View className="mb-4 h-24 w-24 items-center justify-center rounded-full bg-blue-100">
+            <Ionicons name="person" size={48} color="#3b82f6" />
+          </View>
+          <Text className="text-2xl font-bold text-gray-900">{prefs.name}</Text>
+          <Text className="mt-1 font-medium text-gray-500">{prefs.email}</Text>
+          <TouchableOpacity className="mt-4 rounded-full bg-gray-100 px-6 py-2" onPress={openEditProfile}>
+            <Text className="font-bold text-gray-700">Edit Profile</Text>
+          </TouchableOpacity>
+        </View>
 
-			{/* Header */}
-			<View style={styles.headerBar}>
-				<Text style={styles.headerTitle}>Settings</Text>
-			</View>
+        <View className="mb-2 mt-8 px-6">
+          <Text className="text-[12px] font-bold uppercase tracking-[2px] text-gray-400">Preferences</Text>
+        </View>
+        <View className="border-y border-gray-100 bg-white">
+          <TouchableOpacity
+            className="flex-row items-center justify-between border-b border-gray-100 px-5 py-4"
+            onPress={() => setCurrencyPickerVisible(true)}
+          >
+            <View className="flex-row items-center gap-3">
+              <View className="h-8 w-8 items-center justify-center rounded-lg bg-blue-50">
+                <Ionicons name="cash-outline" size={18} color="#3b82f6" />
+              </View>
+              <Text className="text-base font-medium text-gray-800">Currency</Text>
+            </View>
+            <View className="flex-row items-center gap-1">
+              <Text className="text-gray-500">{prefs.currency}</Text>
+              <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+            </View>
+          </TouchableOpacity>
 
-			<ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
-				{/* Profile card */}
-				<View style={styles.profileCard}>
-					<View style={styles.avatarCircle}>
-						<Ionicons name="person" size={48} color="#3b82f6" />
-					</View>
-					<Text style={styles.profileName}>{prefs.name}</Text>
-					<Text style={styles.profileEmail}>{prefs.email}</Text>
-					<TouchableOpacity style={styles.editBtn} onPress={openEditProfile}>
-						<Text style={styles.editBtnText}>Edit Profile</Text>
-					</TouchableOpacity>
-				</View>
+          <TouchableOpacity
+            className="flex-row items-center justify-between px-5 py-4"
+            onPress={openWeekStartPicker}
+          >
+            <View className="flex-row items-center gap-3">
+              <View className="h-8 w-8 items-center justify-center rounded-lg bg-indigo-50">
+                <Ionicons name="calendar-outline" size={18} color="#6366f1" />
+              </View>
+              <Text className="text-base font-medium text-gray-800">Week Starts On</Text>
+            </View>
+            <View className="flex-row items-center gap-1">
+              <Text className="text-gray-500">{prefs.weekStart}</Text>
+              <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+            </View>
+          </TouchableOpacity>
+        </View>
 
-				{/* Preferences */}
-				<View style={styles.sectionHeader}>
-					<Text style={styles.sectionLabel}>Preferences</Text>
-				</View>
-				<View style={styles.settingsGroup}>
-					<TouchableOpacity
-						style={styles.settingRow}
-						onPress={() => setCurrencyPickerVisible(true)}
-					>
-						<View style={styles.settingLeft}>
-							<View style={[styles.settingIcon, { backgroundColor: "#EFF6FF" }]}>
-								<Ionicons name="cash-outline" size={18} color="#3b82f6" />
-							</View>
-							<Text style={styles.settingTitle}>Currency</Text>
-						</View>
-						<View style={styles.settingRight}>
-							<Text style={styles.settingValue}>{prefs.currency}</Text>
-							<Ionicons name="chevron-forward" size={20} color="#9ca3af" />
-						</View>
-					</TouchableOpacity>
-					<TouchableOpacity
-						style={[styles.settingRow, styles.settingRowNoBottom]}
-						onPress={openWeekStartPicker}
-					>
-						<View style={styles.settingLeft}>
-							<View style={[styles.settingIcon, { backgroundColor: "#EEF2FF" }]}>
-								<Ionicons name="calendar-outline" size={18} color="#6366f1" />
-							</View>
-							<Text style={styles.settingTitle}>Week Starts On</Text>
-						</View>
-						<View style={styles.settingRight}>
-							<Text style={styles.settingValue}>{prefs.weekStart}</Text>
-							<Ionicons name="chevron-forward" size={20} color="#9ca3af" />
-						</View>
-					</TouchableOpacity>
-				</View>
+        <View className="mb-2 mt-8 px-6">
+          <Text className="text-[12px] font-bold uppercase tracking-[2px] text-gray-400">Security &amp; Data</Text>
+        </View>
+        <View className="border-y border-gray-100 bg-white">
+          <View className="flex-row items-center justify-between border-b border-gray-100 px-5 py-4">
+            <View className="flex-row items-center gap-3">
+              <View className="h-8 w-8 items-center justify-center rounded-lg bg-emerald-50">
+                <Ionicons name="lock-closed-outline" size={18} color="#10b981" />
+              </View>
+              <View>
+                <Text className="text-base font-medium text-gray-800">App Lock</Text>
+                <Text className="text-xs text-gray-400">Require FaceID / Passcode</Text>
+              </View>
+            </View>
+            <Switch
+              value={prefs.appLockEnabled}
+              onValueChange={toggleAppLock}
+              disabled={Platform.OS === "web"}
+              trackColor={{ false: "#d1d5db", true: "#93c5fd" }}
+              thumbColor={prefs.appLockEnabled ? "#3b82f6" : "#f3f4f6"}
+            />
+          </View>
 
-				{/* Security & Data */}
-				<View style={styles.sectionHeader}>
-					<Text style={styles.sectionLabel}>Security & Data</Text>
-				</View>
-				<View style={styles.settingsGroup}>
-					<View style={styles.settingRow}>
-						<View style={styles.settingLeft}>
-							<View style={[styles.settingIcon, { backgroundColor: "#ECFDF5" }]}>
-								<Ionicons name="lock-closed-outline" size={18} color="#10b981" />
-							</View>
-							<View>
-								<Text style={styles.settingTitle}>App Lock</Text>
-								<Text style={styles.settingSubtitle}>Require FaceID / Passcode</Text>
-							</View>
-						</View>
-						<Switch
-							value={prefs.appLockEnabled}
-							onValueChange={toggleAppLock}
-							disabled={Platform.OS === "web"}
-							trackColor={{ false: "#d1d5db", true: "#93c5fd" }}
-							thumbColor={prefs.appLockEnabled ? "#3b82f6" : "#f3f4f6"}
-						/>
-					</View>
-					<TouchableOpacity
-						style={[styles.settingRow, styles.settingRowNoBottom]}
-						onPress={handleExportCSV}
-					>
-						<View style={styles.settingLeft}>
-							<View style={[styles.settingIcon, { backgroundColor: "#FFFBEB" }]}>
-								<Ionicons name="download-outline" size={18} color="#f59e0b" />
-							</View>
-							<View>
-								<Text style={styles.settingTitle}>Export Data</Text>
-								<Text style={styles.settingSubtitle}>Download transactions to CSV</Text>
-							</View>
-						</View>
-						<Ionicons name="chevron-forward" size={20} color="#9ca3af" />
-					</TouchableOpacity>
-				</View>
-			</ScrollView>
-		</View>
-	);
+          <TouchableOpacity className="flex-row items-center justify-between px-5 py-4" onPress={handleExportCSV}>
+            <View className="flex-row items-center gap-3">
+              <View className="h-8 w-8 items-center justify-center rounded-lg bg-amber-50">
+                <Ionicons name="download-outline" size={18} color="#f59e0b" />
+              </View>
+              <View>
+                <Text className="text-base font-medium text-gray-800">Export Data</Text>
+                <Text className="text-xs text-gray-400">Download transactions to CSV</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </View>
+  );
 }
-
-const styles = StyleSheet.create({
-	container: { flex: 1, backgroundColor: "#F9FAFB" },
-	headerBar: {
-		paddingHorizontal: 20,
-		paddingTop: 16,
-		paddingBottom: 16,
-		backgroundColor: "white",
-		borderBottomWidth: 1,
-		borderBottomColor: "#F3F4F6",
-	},
-	headerTitle: { fontSize: 24, fontWeight: "bold", color: "#111827" },
-
-	// Profile card
-	profileCard: {
-		backgroundColor: "white",
-		paddingVertical: 32,
-		borderBottomWidth: 1,
-		borderBottomColor: "#F3F4F6",
-		alignItems: "center",
-	},
-	avatarCircle: {
-		width: 96,
-		height: 96,
-		backgroundColor: "#DBEAFE",
-		borderRadius: 48,
-		alignItems: "center",
-		justifyContent: "center",
-		marginBottom: 16,
-	},
-	profileName: { fontSize: 24, fontWeight: "bold", color: "#111827" },
-	profileEmail: { color: "#6B7280", fontWeight: "500", marginTop: 4 },
-	editBtn: {
-		marginTop: 16,
-		backgroundColor: "#F3F4F6",
-		paddingHorizontal: 24,
-		paddingVertical: 8,
-		borderRadius: 20,
-	},
-	editBtnText: { color: "#374151", fontWeight: "bold" },
-
-	// Section headers
-	sectionHeader: { paddingHorizontal: 24, marginTop: 32, marginBottom: 8 },
-	sectionLabel: {
-		fontSize: 12,
-		fontWeight: "bold",
-		color: "#9CA3AF",
-		textTransform: "uppercase",
-		letterSpacing: 2,
-	},
-
-	// Settings group / rows
-	settingsGroup: {
-		backgroundColor: "white",
-		borderTopWidth: 1,
-		borderBottomWidth: 1,
-		borderColor: "#F3F4F6",
-	},
-	settingRow: {
-		flexDirection: "row",
-		justifyContent: "space-between",
-		alignItems: "center",
-		paddingHorizontal: 20,
-		paddingVertical: 16,
-		borderBottomWidth: 1,
-		borderBottomColor: "#F3F4F6",
-	},
-	settingRowNoBottom: { borderBottomWidth: 0 },
-	settingLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
-	settingIcon: {
-		width: 32,
-		height: 32,
-		borderRadius: 8,
-		alignItems: "center",
-		justifyContent: "center",
-	},
-	settingTitle: { fontSize: 16, fontWeight: "500", color: "#1F2937" },
-	settingSubtitle: { fontSize: 12, color: "#9CA3AF" },
-	settingRight: { flexDirection: "row", alignItems: "center", gap: 4 },
-	settingValue: { color: "#6B7280" },
-
-	// Modals
-	modalOverlay: {
-		flex: 1,
-		backgroundColor: "rgba(0,0,0,0.4)",
-		justifyContent: "flex-end",
-	},
-	modalCard: {
-		backgroundColor: "white",
-		borderTopLeftRadius: 24,
-		borderTopRightRadius: 24,
-		paddingHorizontal: 24,
-		paddingTop: 24,
-		paddingBottom: 40,
-	},
-	modalTitle: {
-		fontSize: 18,
-		fontWeight: "bold",
-		color: "#111827",
-		marginBottom: 20,
-		textAlign: "center",
-	},
-
-	// Edit Profile inputs
-	inputLabel: { fontSize: 13, fontWeight: "600", color: "#6B7280", marginBottom: 6 },
-	input: {
-		borderWidth: 1,
-		borderColor: "#E5E7EB",
-		borderRadius: 10,
-		paddingHorizontal: 14,
-		paddingVertical: 12,
-		fontSize: 16,
-		color: "#111827",
-		marginBottom: 16,
-		backgroundColor: "#F9FAFB",
-	},
-	modalActions: {
-		flexDirection: "row",
-		gap: 12,
-		marginTop: 4,
-	},
-	modalCancelBtn: {
-		flex: 1,
-		paddingVertical: 14,
-		borderRadius: 12,
-		borderWidth: 1,
-		borderColor: "#E5E7EB",
-		alignItems: "center",
-	},
-	modalCancelText: { fontSize: 16, fontWeight: "600", color: "#6B7280" },
-	modalSaveBtn: {
-		flex: 1,
-		paddingVertical: 14,
-		borderRadius: 12,
-		backgroundColor: "#3b82f6",
-		alignItems: "center",
-	},
-	modalSaveText: { fontSize: 16, fontWeight: "600", color: "white" },
-
-	// Currency picker
-	currencyOption: {
-		flexDirection: "row",
-		justifyContent: "space-between",
-		alignItems: "center",
-		paddingVertical: 14,
-		borderBottomWidth: 1,
-		borderBottomColor: "#F3F4F6",
-	},
-	currencyText: { fontSize: 16, color: "#374151" },
-	currencyTextSelected: { fontWeight: "bold", color: "#3b82f6" },
-});

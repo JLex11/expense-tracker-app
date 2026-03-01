@@ -7,21 +7,14 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as LocalAuthentication from "expo-local-authentication";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-	ActivityIndicator,
-	AppState,
-	Platform,
-	StyleSheet,
-	Text,
-	TouchableOpacity,
-	View,
-} from "react-native";
+import { ActivityIndicator, AppState, Platform } from "react-native";
 import "react-native-reanimated";
 import "./globals.css";
 
 import { seedCategories } from "@/database";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { savePrefs, usePrefs } from "@/hooks/usePrefs";
+import { Text, TouchableOpacity, View } from "@/tw";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 export const unstable_settings = {
@@ -156,7 +149,7 @@ export default function RootLayout() {
 	return (
 		<SafeAreaProvider>
 			<ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-				<View style={styles.root}>
+				<View className="flex-1">
 					<Stack>
 						<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 						<Stack.Screen
@@ -165,21 +158,21 @@ export default function RootLayout() {
 						/>
 					</Stack>
 					{isLocked && (
-						<View style={styles.lockOverlay}>
-							<View style={styles.lockCard}>
-								<Text style={styles.lockTitle}>App Locked</Text>
-								<Text style={styles.lockSubtitle}>
+						<View className="absolute inset-0 items-center justify-center bg-slate-900/90 px-6">
+							<View className="w-full max-w-[340px] rounded-[20px] border border-white/20 bg-slate-900 p-6">
+								<Text className="mb-2 text-2xl font-bold text-white">App Locked</Text>
+								<Text className="mb-5 text-[15px] leading-[22px] text-gray-300">
 									{lockMessage ?? "Authenticate to continue"}
 								</Text>
 								<TouchableOpacity
-									style={styles.lockButton}
+									className="min-h-[46px] items-center justify-center rounded-xl bg-blue-600 py-3"
 									onPress={() => void authenticateToUnlock()}
 									disabled={isAuthenticating}
 								>
 									{isAuthenticating ? (
 										<ActivityIndicator color="#ffffff" />
 									) : (
-										<Text style={styles.lockButtonText}>
+										<Text className="text-base font-semibold text-white">
 											{lockMessage ? "Retry" : "Unlock"}
 										</Text>
 									)}
@@ -193,52 +186,3 @@ export default function RootLayout() {
 		</SafeAreaProvider>
 	);
 }
-
-const styles = StyleSheet.create({
-	root: { flex: 1 },
-	lockOverlay: {
-		position: "absolute",
-		top: 0,
-		right: 0,
-		bottom: 0,
-		left: 0,
-		backgroundColor: "rgba(17, 24, 39, 0.92)",
-		alignItems: "center",
-		justifyContent: "center",
-		paddingHorizontal: 24,
-	},
-	lockCard: {
-		width: "100%",
-		maxWidth: 340,
-		backgroundColor: "#111827",
-		borderRadius: 20,
-		padding: 24,
-		borderWidth: 1,
-		borderColor: "rgba(255, 255, 255, 0.16)",
-	},
-	lockTitle: {
-		fontSize: 24,
-		fontWeight: "700",
-		color: "#ffffff",
-		marginBottom: 8,
-	},
-	lockSubtitle: {
-		fontSize: 15,
-		color: "#d1d5db",
-		lineHeight: 22,
-		marginBottom: 20,
-	},
-	lockButton: {
-		backgroundColor: "#2563eb",
-		paddingVertical: 12,
-		borderRadius: 12,
-		alignItems: "center",
-		justifyContent: "center",
-		minHeight: 46,
-	},
-	lockButtonText: {
-		fontSize: 16,
-		fontWeight: "600",
-		color: "#ffffff",
-	},
-});

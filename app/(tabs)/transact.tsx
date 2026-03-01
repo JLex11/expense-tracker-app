@@ -1,314 +1,177 @@
 import { database } from "@/database";
 import type Category from "@/database/models/Category";
+import { ScrollView, Text, TextInput, TouchableOpacity, View } from "@/tw";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import React, { useEffect, useState } from "react";
-import {
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
-} from "react-native";
+import { Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const PRIMARY = "#0a7ea4";
-
 export default function TransactScreen() {
-	const insets = useSafeAreaInsets();
-	const [amount, setAmount] = useState("");
-	const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-	const [date, setDate] = useState(new Date());
-	const [showDatePicker, setShowDatePicker] = useState(false);
-	const [paymentMethod, setPaymentMethod] = useState("card");
-	const [note, setNote] = useState("");
-	const [categories, setCategories] = useState<Category[]>([]);
+  const insets = useSafeAreaInsets();
+  const [amount, setAmount] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [date, setDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("card");
+  const [note, setNote] = useState("");
+  const [categories, setCategories] = useState<Category[]>([]);
 
-	useEffect(() => {
-		database.get<Category>("categories").query().fetch().then(setCategories);
-	}, []);
+  useEffect(() => {
+    database.get<Category>("categories").query().fetch().then(setCategories);
+  }, []);
 
-	const handleSave = async () => {
-		if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-			Alert.alert("Error", "Please enter a valid amount greater than 0");
-			return;
-		}
-		if (!selectedCategory) {
-			Alert.alert("Error", "Please select a category");
-			return;
-		}
-		try {
-			await database.write(async () => {
-				await database.get("expenses").create((expense: any) => {
-					expense.amount = Number(amount);
-					expense.categoryId = selectedCategory;
-					expense.date = date.getTime();
-					expense.note = note;
-					expense.paymentMethod = paymentMethod;
-				});
-			});
-			Alert.alert("Success", "Expense saved!");
-			setAmount("");
-			setNote("");
-			setSelectedCategory(null);
-		} catch (e) {
-			console.error(e);
-			Alert.alert("Error", "Failed to save expense");
-		}
-	};
+  const handleSave = async () => {
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+      Alert.alert("Error", "Please enter a valid amount greater than 0");
+      return;
+    }
 
-	return (
-		<ScrollView
-			style={styles.container}
-			contentContainerStyle={[styles.content, { paddingTop: insets.top + 20 }]}
-		>
-			{/* Amount */}
-			<View style={styles.amountSection}>
-				<Text style={styles.amountLabel}>Amount</Text>
-				<View style={styles.amountRow}>
-					<Text style={styles.currency}>$</Text>
-					<TextInput
-						style={styles.amountInput}
-						value={amount}
-						onChangeText={setAmount}
-						keyboardType="decimal-pad"
-						placeholder="0.00"
-						placeholderTextColor="#D1D5DB"
-					/>
-				</View>
-			</View>
+    if (!selectedCategory) {
+      Alert.alert("Error", "Please select a category");
+      return;
+    }
 
-			{/* Category */}
-			<View style={styles.section}>
-				<Text style={styles.sectionLabel}>Category</Text>
-				<View style={styles.categoryGrid}>
-					{categories.map((cat) => {
-						const isSelected = selectedCategory === cat.id;
-						return (
-							<TouchableOpacity
-								key={cat.id}
-								onPress={() => setSelectedCategory(cat.id)}
-								style={[
-									styles.categoryItem,
-									isSelected
-										? styles.categoryItemSelected
-										: styles.categoryItemUnselected,
-								]}
-								activeOpacity={0.7}
-							>
-								<Ionicons
-									name={cat.icon as any}
-									size={28}
-									color={isSelected ? "white" : "#6B7280"}
-								/>
-								<Text
-									style={[
-										styles.categoryText,
-										isSelected && styles.categoryTextSelected,
-									]}
-								>
-									{cat.name}
-								</Text>
-							</TouchableOpacity>
-						);
-					})}
-				</View>
-			</View>
+    try {
+      await database.write(async () => {
+        await database.get("expenses").create((expense: any) => {
+          expense.amount = Number(amount);
+          expense.categoryId = selectedCategory;
+          expense.date = date.getTime();
+          expense.note = note;
+          expense.paymentMethod = paymentMethod;
+        });
+      });
 
-			{/* Details */}
-			<View style={styles.section}>
-				<Text style={styles.sectionLabel}>Details</Text>
-				<View style={styles.detailsCard}>
-					<View style={styles.detailRow}>
-						<Text style={styles.detailLabel}>Date</Text>
-						<TouchableOpacity
-							onPress={() => setShowDatePicker(true)}
-							style={styles.dateButton}
-						>
-							<Text style={styles.dateText}>{date.toLocaleDateString()}</Text>
-						</TouchableOpacity>
-					</View>
-					{showDatePicker && (
-						<DateTimePicker
-							value={date}
-							mode="date"
-							display="default"
-							onChange={(event, selectedDate) => {
-								setShowDatePicker(false);
-								if (selectedDate) setDate(selectedDate);
-							}}
-						/>
-					)}
-					<View style={[styles.detailRow, styles.detailRowTop]}>
-						<Text style={styles.detailLabel}>Method</Text>
-						<View style={styles.methodRow}>
-							{["cash", "card", "transfer"].map((method) => (
-								<TouchableOpacity
-									key={method}
-									onPress={() => setPaymentMethod(method)}
-									style={[
-										styles.methodOption,
-										paymentMethod === method && styles.methodOptionActive,
-									]}
-								>
-									<Text
-										style={[
-											styles.methodText,
-											paymentMethod === method && styles.methodTextActive,
-										]}
-									>
-										{method}
-									</Text>
-								</TouchableOpacity>
-							))}
-						</View>
-					</View>
-				</View>
+      Alert.alert("Success", "Expense saved!");
+      setAmount("");
+      setNote("");
+      setSelectedCategory(null);
+    } catch (e) {
+      console.error(e);
+      Alert.alert("Error", "Failed to save expense");
+    }
+  };
 
-				<TextInput
-					style={styles.noteInput}
-					placeholder="Add a note..."
-					placeholderTextColor="#9CA3AF"
-					value={note}
-					onChangeText={setNote}
-				/>
-			</View>
+  return (
+    <ScrollView
+      className="flex-1 bg-white"
+      contentContainerStyle={{
+        paddingTop: insets.top + 20,
+        paddingBottom: 100,
+        paddingHorizontal: 20,
+      }}
+    >
+      <View className="mb-10 items-center">
+        <Text className="mb-2 text-base font-medium tracking-[1px] text-gray-400">Amount</Text>
+        <View className="flex-row items-center border-b border-gray-200 pb-2">
+          <Text className="mr-2 text-5xl font-bold text-gray-800">$</Text>
+          <TextInput
+            className="min-w-[100px] p-0 text-center text-[56px] font-bold text-gray-800"
+            value={amount}
+            onChangeText={setAmount}
+            keyboardType="decimal-pad"
+            placeholder="0.00"
+            placeholderTextColor="#D1D5DB"
+          />
+        </View>
+      </View>
 
-			<TouchableOpacity
-				style={styles.saveButton}
-				onPress={handleSave}
-				activeOpacity={0.8}
-			>
-				<Text style={styles.saveButtonText}>Save Expense</Text>
-			</TouchableOpacity>
-		</ScrollView>
-	);
+      <View className="mb-8">
+        <Text className="mb-4 pl-1 text-[12px] font-bold uppercase tracking-[2px] text-gray-400">
+          Category
+        </Text>
+
+        <View className="flex-row flex-wrap gap-3">
+          {categories.map((cat) => {
+            const isSelected = selectedCategory === cat.id;
+            return (
+              <TouchableOpacity
+                key={cat.id}
+                onPress={() => setSelectedCategory(cat.id)}
+                className={`aspect-square w-[30%] items-center justify-center rounded-3xl border p-4 ${
+                  isSelected ? "border-primary bg-primary" : "border-gray-100 bg-gray-50"
+                }`}
+                activeOpacity={0.7}
+              >
+                <Ionicons name={cat.icon as any} size={28} color={isSelected ? "white" : "#6B7280"} />
+                <Text className={`mt-1 text-xs font-semibold ${isSelected ? "text-white" : "text-gray-600"}`}>
+                  {cat.name}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
+      <View className="mb-8">
+        <Text className="mb-4 pl-1 text-[12px] font-bold uppercase tracking-[2px] text-gray-400">
+          Details
+        </Text>
+
+        <View className="mb-4 rounded-3xl border border-gray-100 bg-gray-50 p-5">
+          <View className="flex-row items-center justify-between">
+            <Text className="font-medium text-gray-600">Date</Text>
+            <TouchableOpacity
+              onPress={() => setShowDatePicker(true)}
+              className="rounded-xl border border-gray-100 bg-white px-4 py-2"
+            >
+              <Text className="font-semibold text-gray-800">{date.toLocaleDateString()}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={date}
+              mode="date"
+              display="default"
+              onChange={(event, selectedDate) => {
+                setShowDatePicker(false);
+                if (selectedDate) setDate(selectedDate);
+              }}
+            />
+          )}
+
+          <View className="mt-5 border-t border-gray-200 pt-5">
+            <View className="flex-row items-center justify-between">
+              <Text className="font-medium text-gray-600">Method</Text>
+
+              <View className="flex-row rounded-xl bg-gray-200 p-1">
+                {["cash", "card", "transfer"].map((method) => {
+                  const isActive = paymentMethod === method;
+                  return (
+                    <TouchableOpacity
+                      key={method}
+                      onPress={() => setPaymentMethod(method)}
+                      className={`rounded-lg px-4 py-2 ${isActive ? "bg-white" : ""}`}
+                    >
+                      <Text
+                        className={`text-sm capitalize ${
+                          isActive ? "font-bold text-gray-800" : "font-medium text-gray-500"
+                        }`}
+                      >
+                        {method}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+        </View>
+
+        <TextInput
+          className="rounded-3xl border border-gray-100 bg-gray-50 p-5 font-medium text-gray-800"
+          placeholder="Add a note..."
+          placeholderTextColor="#9CA3AF"
+          value={note}
+          onChangeText={setNote}
+        />
+      </View>
+
+      <TouchableOpacity className="items-center rounded-3xl bg-primary py-5" onPress={handleSave} activeOpacity={0.8}>
+        <Text className="text-lg font-bold text-white">Save Expense</Text>
+      </TouchableOpacity>
+    </ScrollView>
+  );
 }
-
-const styles = StyleSheet.create({
-	container: { flex: 1, backgroundColor: "#fff" },
-	content: { paddingBottom: 100, paddingHorizontal: 20 },
-	amountSection: { marginBottom: 40, alignItems: "center" },
-	amountLabel: {
-		color: "#9CA3AF",
-		fontSize: 16,
-		fontWeight: "500",
-		marginBottom: 8,
-		letterSpacing: 1,
-	},
-	amountRow: {
-		flexDirection: "row",
-		alignItems: "center",
-		borderBottomWidth: 1,
-		borderBottomColor: "#E5E7EB",
-		paddingBottom: 8,
-	},
-	currency: {
-		fontSize: 48,
-		fontWeight: "bold",
-		color: "#1F2937",
-		marginRight: 8,
-	},
-	amountInput: {
-		fontSize: 56,
-		fontWeight: "bold",
-		color: "#1F2937",
-		padding: 0,
-		minWidth: 100,
-		textAlign: "center",
-	},
-	section: { marginBottom: 32 },
-	sectionLabel: {
-		fontSize: 12,
-		fontWeight: "bold",
-		color: "#9CA3AF",
-		marginBottom: 16,
-		textTransform: "uppercase",
-		letterSpacing: 2,
-		paddingLeft: 4,
-	},
-	categoryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
-	categoryItem: {
-		padding: 16,
-		borderRadius: 24,
-		borderWidth: 1,
-		alignItems: "center",
-		justifyContent: "center",
-		width: "30%",
-		aspectRatio: 1,
-	},
-	categoryItemSelected: { backgroundColor: PRIMARY, borderColor: PRIMARY },
-	categoryItemUnselected: {
-		backgroundColor: "#F9FAFB",
-		borderColor: "#F3F4F6",
-	},
-	categoryText: {
-		fontSize: 12,
-		fontWeight: "600",
-		color: "#4B5563",
-		marginTop: 4,
-	},
-	categoryTextSelected: { color: "white" },
-	detailsCard: {
-		backgroundColor: "#F9FAFB",
-		borderRadius: 24,
-		padding: 20,
-		borderWidth: 1,
-		borderColor: "#F3F4F6",
-		marginBottom: 16,
-	},
-	detailRow: {
-		flexDirection: "row",
-		justifyContent: "space-between",
-		alignItems: "center",
-	},
-	detailRowTop: {
-		borderTopWidth: 1,
-		borderTopColor: "#E5E7EB",
-		paddingTop: 20,
-		marginTop: 20,
-	},
-	detailLabel: { color: "#4B5563", fontWeight: "500" },
-	dateButton: {
-		backgroundColor: "white",
-		paddingHorizontal: 16,
-		paddingVertical: 8,
-		borderRadius: 12,
-		borderWidth: 1,
-		borderColor: "#F3F4F6",
-	},
-	dateText: { color: "#1F2937", fontWeight: "600" },
-	methodRow: {
-		flexDirection: "row",
-		backgroundColor: "#E5E7EB",
-		borderRadius: 12,
-		padding: 4,
-	},
-	methodOption: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
-	methodOptionActive: { backgroundColor: "white" },
-	methodText: {
-		fontSize: 14,
-		textTransform: "capitalize",
-		color: "#6B7280",
-		fontWeight: "500",
-	},
-	methodTextActive: { fontWeight: "bold", color: "#1F2937" },
-	noteInput: {
-		backgroundColor: "#F9FAFB",
-		borderRadius: 24,
-		padding: 20,
-		borderWidth: 1,
-		borderColor: "#F3F4F6",
-		color: "#1F2937",
-		fontWeight: "500",
-	},
-	saveButton: {
-		backgroundColor: PRIMARY,
-		paddingVertical: 20,
-		borderRadius: 24,
-		alignItems: "center",
-	},
-	saveButtonText: { color: "white", fontWeight: "bold", fontSize: 18 },
-});
