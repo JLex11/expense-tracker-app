@@ -1,8 +1,10 @@
 import { database } from "@/database";
 import type Category from "@/database/models/Category";
+import type Expense from "@/database/models/Expense";
 import { useExpenses } from "@/hooks/useExpenses";
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from "@/tw";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import { Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -17,6 +19,7 @@ const FILTERS: { key: FilterType; label: string }[] = [
 
 export default function HistoryScreen() {
 	const insets = useSafeAreaInsets();
+	const router = useRouter();
 	const expenses = useExpenses();
 	const [categories, setCategories] = useState<Category[]>([]);
 	const [filter, setFilter] = useState<FilterType>("month");
@@ -100,8 +103,10 @@ export default function HistoryScreen() {
 					onPress: async () => {
 						try {
 							await database.write(async () => {
-								const expense = await database.get("expenses").find(id);
-								await (expense as any).destroyPermanently();
+								const expense = await database
+									.get<Expense>("expenses")
+									.find(id);
+								await expense.destroyPermanently();
 							});
 						} catch (e) {
 							console.error(e);
@@ -182,13 +187,22 @@ export default function HistoryScreen() {
 								return (
 									<TouchableOpacity
 										key={exp.id}
+										onPress={() =>
+											router.push({
+												pathname: "/movement/[id]",
+												params: { id: exp.id },
+											})
+										}
 										onLongPress={() => handleDelete(exp.id)}
 										delayLongPress={500}
 										className={`flex-row items-center bg-white p-4 ${!isLast ? "border-b border-gray-100" : ""}`}
 									>
 										<View className="items-center justify-center w-12 h-12 mr-4 rounded-2xl bg-orange-50">
 											<Ionicons
-												name={(cat?.icon || "help-circle") as any}
+												name={
+													(cat?.icon ||
+														"help-circle") as keyof typeof Ionicons.glyphMap
+												}
 												size={24}
 												color="#f59e0b"
 											/>

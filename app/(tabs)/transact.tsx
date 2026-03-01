@@ -1,14 +1,17 @@
 import { database } from "@/database";
 import type Category from "@/database/models/Category";
+import type Expense from "@/database/models/Expense";
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from "@/tw";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import React, { useEffect, useState } from "react";
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import { Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function TransactScreen() {
 	const insets = useSafeAreaInsets();
+	const router = useRouter();
 	const [amount, setAmount] = useState("");
 	const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 	const [date, setDate] = useState(new Date());
@@ -22,7 +25,7 @@ export default function TransactScreen() {
 	}, []);
 
 	const handleSave = async () => {
-		if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+		if (!amount || Number.isNaN(Number(amount)) || Number(amount) <= 0) {
 			Alert.alert("Error", "Please enter a valid amount greater than 0");
 			return;
 		}
@@ -33,20 +36,32 @@ export default function TransactScreen() {
 		}
 
 		try {
+			let createdExpenseId: string | null = null;
+
 			await database.write(async () => {
-				await database.get("expenses").create((expense: any) => {
-					expense.amount = Number(amount);
-					expense.categoryId = selectedCategory;
-					expense.date = date.getTime();
-					expense.note = note;
-					expense.paymentMethod = paymentMethod;
-				});
+				const createdExpense = await database
+					.get<Expense>("expenses")
+					.create((expense) => {
+						expense.amount = Number(amount);
+						expense.categoryId = selectedCategory;
+						expense.date = date.getTime();
+						expense.note = note;
+						expense.paymentMethod = paymentMethod;
+					});
+
+				createdExpenseId = createdExpense.id;
 			});
 
-			Alert.alert("Success", "Expense saved!");
 			setAmount("");
 			setNote("");
 			setSelectedCategory(null);
+
+			if (createdExpenseId) {
+				router.push({
+					pathname: "/movement/[id]",
+					params: { id: createdExpenseId },
+				});
+			}
 		} catch (e) {
 			console.error(e);
 			Alert.alert("Error", "Failed to save expense");
@@ -69,7 +84,7 @@ export default function TransactScreen() {
 				<View className="flex-row items-center pb-2 border-b border-gray-200">
 					<Text className="mr-2 text-5xl font-bold text-gray-800">$</Text>
 					<TextInput
-						className="min-w-[100px] p-0 text-center text-[56px] font-bold text-gray-800"
+						className="min-w-25 p-0 text-center text-[56px] font-bold text-gray-800"
 						value={amount}
 						onChangeText={setAmount}
 						keyboardType="decimal-pad"
@@ -99,7 +114,7 @@ export default function TransactScreen() {
 								activeOpacity={0.7}
 							>
 								<Ionicons
-									name={cat.icon as any}
+									name={cat.icon as keyof typeof Ionicons.glyphMap}
 									size={28}
 									color={isSelected ? "white" : "#6B7280"}
 								/>
@@ -137,7 +152,7 @@ export default function TransactScreen() {
 							value={date}
 							mode="date"
 							display="default"
-							onChange={(event, selectedDate) => {
+							onChange={(_event, selectedDate) => {
 								setShowDatePicker(false);
 								if (selectedDate) setDate(selectedDate);
 							}}
