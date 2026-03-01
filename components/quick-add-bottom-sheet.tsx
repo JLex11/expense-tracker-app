@@ -3,8 +3,8 @@ import { useQuickAdd } from "@/contexts/quick-add";
 import { database } from "@/database";
 import type Category from "@/database/models/Category";
 import { createExpenseWithOptionalRecurrence } from "@/services/expenses";
-import type { RecurrenceUnit, RecurringRuleInput } from "@/types/expenses";
 import { Text, TouchableOpacity, View } from "@/tw";
+import type { RecurrenceUnit, RecurringRuleInput } from "@/types/expenses";
 import { parseRecurrenceInterval } from "@/utils/recurrence";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -193,14 +193,13 @@ export default function QuickAddDialog() {
 			transparent
 			animationType="slide"
 			onRequestClose={resetAndClose}
-			statusBarTranslucent
 		>
 			<KeyboardAvoidingView
 				style={styles.overlay}
 				behavior={Platform.OS === "ios" ? "padding" : "height"}
 			>
 				<Pressable style={styles.backdrop} onPress={resetAndClose} />
-				<View className="mx-3 mb-3 overflow-hidden rounded-3xl bg-white">
+				<View className="mx-3 mb-5 overflow-hidden bg-white rounded-3xl">
 					<Animated.View style={animatedContainerStyle}>
 						<View onLayout={handleContentLayout} style={styles.content}>
 							{/* Header */}
@@ -307,7 +306,7 @@ export default function QuickAddDialog() {
 							{/* Step 1: Category */}
 							{step === 1 && (
 								<Animated.View entering={FadeInDown.duration(250).springify()}>
-									<Text className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-gray-400">
+									<Text className="px-1 mb-2 text-xs font-semibold tracking-wider text-gray-400 uppercase">
 										Selecciona una categoría
 									</Text>
 									<FlatList
@@ -368,7 +367,7 @@ export default function QuickAddDialog() {
 												Keyboard.dismiss();
 												setShowDatePicker(true);
 											}}
-											className="flex-1 flex-row items-center gap-2 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3"
+											className="flex-row items-center flex-1 gap-2 px-4 py-3 border border-gray-200 rounded-2xl bg-gray-50"
 										>
 											<Ionicons
 												name="calendar-outline"
@@ -381,7 +380,7 @@ export default function QuickAddDialog() {
 										</TouchableOpacity>
 
 										{selectedCat && (
-											<View className="flex-row items-center gap-2 rounded-2xl bg-primary/10 px-4 py-3">
+											<View className="flex-row items-center gap-2 px-4 py-3 rounded-2xl bg-primary/10">
 												<Ionicons
 													name={
 														selectedCat.icon as keyof typeof Ionicons.glyphMap
@@ -416,9 +415,9 @@ export default function QuickAddDialog() {
 										onChangeText={setNote}
 									/>
 
-									<View className="mt-3 rounded-2xl border border-gray-200 bg-gray-50 p-4">
-										<View className="mb-4 flex-row items-center justify-between">
-											<View className="mr-4 flex-1">
+									<View className="p-4 mt-3 border border-gray-200 rounded-2xl bg-gray-50">
+										<View className="flex-row items-center justify-between mb-4">
+											<View className="flex-1 mr-4">
 												<Text className="font-semibold text-gray-900">
 													Gasto recurrente
 												</Text>

@@ -2,8 +2,8 @@ import RecurrenceEditor from "@/components/recurrence-editor";
 import { database } from "@/database";
 import type Category from "@/database/models/Category";
 import { createExpenseWithOptionalRecurrence } from "@/services/expenses";
-import type { RecurrenceUnit, RecurringRuleInput } from "@/types/expenses";
 import { Text, TouchableOpacity, View } from "@/tw";
+import type { RecurrenceUnit, RecurringRuleInput } from "@/types/expenses";
 import { parseRecurrenceInterval } from "@/utils/recurrence";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -181,7 +181,7 @@ export default function QuickAddScreen() {
 			behavior={Platform.OS === "ios" ? "padding" : "height"}
 		>
 			<Pressable style={styles.backdrop} onPress={handleClose} />
-			<View className="mx-3 mb-3 overflow-hidden bg-white rounded-3xl">
+			<View className="mx-3 mb-6 overflow-hidden bg-white rounded-3xl">
 				<Animated.View style={animatedContainerStyle}>
 					<View onLayout={handleContentLayout} style={styles.content}>
 						{/* Header */}
@@ -395,9 +395,9 @@ export default function QuickAddScreen() {
 									onChangeText={setNote}
 								/>
 
-								<View className="mt-3 rounded-2xl border border-gray-200 bg-gray-50 p-4">
-									<View className="mb-4 flex-row items-center justify-between">
-										<View className="mr-4 flex-1">
+								<View className="p-4 mt-3 border border-gray-200 rounded-2xl bg-gray-50">
+									<View className="flex-row items-center justify-between mb-4">
+										<View className="flex-1 mr-4">
 											<Text className="font-semibold text-gray-900">
 												Gasto recurrente
 											</Text>
