@@ -1,50 +1,95 @@
-# Welcome to your Expo app 👋
+# Expense Tracker App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Mobile-first expense tracker built with Expo Router, React Native, Tailwind (NativeWind), and WatermelonDB.
 
-## Get started
+## Features
 
-1. Install dependencies
+- Create expenses with amount, category, date, payment method, and notes
+- Quick add flow from tab action and native quick actions
+- Recurring expense rules (daily/weekly/monthly style intervals)
+- Pending recurring prompts with confirm/skip workflow
+- Dashboard with weekly trend chart and top spending categories
+- Search and filter expense history
+- Movement detail screen with recurrence controls
+- CSV export for confirmed expenses
+- User preferences (name, email, currency, week start day)
+- Optional app lock with biometrics/device credentials
 
-   ```bash
-   npm install
-   ```
+## Tech Stack
 
-2. Start the app
+- Expo SDK 54 + Expo Router
+- React 19 + React Native 0.81
+- TypeScript
+- WatermelonDB (SQLite adapter)
+- NativeWind v5 preview + Tailwind CSS v4 + react-native-css
+- React Native Reanimated + Gesture Handler
 
-   ```bash
-   npx expo start
-   ```
+## Project Structure
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```txt
+app/                    Expo Router routes and screens
+components/             Reusable UI and feature components
+contexts/               Shared state providers
+database/               WatermelonDB schema, models, migrations
+hooks/                  Data and preferences hooks
+services/               Business logic (expenses, recurring sync)
+utils/                  Helpers (recurrence, CSV export)
+scripts/                Local development scripts
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Prerequisites
 
-## Learn more
+- Node.js 20+ (recommended)
+- Bun
+- Android Studio (for Android emulator/device builds)
+- Xcode (for iOS Simulator/device builds on macOS)
 
-To learn more about developing your project with Expo, look at the following resources:
+> Note: This project prefers **Bun** for dependency management and script execution.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Getting Started
 
-## Join the community
+1. Install dependencies:
 
-Join our community of developers creating universal apps.
+```bash
+bun install
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+2. Start Metro:
+
+```bash
+bun run start
+```
+
+3. Run a platform build:
+
+```bash
+bun run android
+# or
+bun run ios
+```
+
+## Available Scripts
+
+- `bun run start` - start Expo dev server
+- `bun run android` - run Android build
+- `bun run android:fast` - boot emulator with performance flags, then run Android
+- `bun run ios` - run iOS build
+- `bun run web` - run web target
+- `bun run lint` - run Expo lint rules
+- `bun run reset-project` - reset starter scaffold
+
+## Notes
+
+- This app uses native modules (for example WatermelonDB, Local Authentication, Quick Actions), so use native/dev builds (`expo run:*`) instead of relying only on Expo Go.
+- On first launch, default categories are seeded automatically.
+- Recurring rules generate pending expenses up to the current day; users can confirm or skip them.
+
+## Data Model (high level)
+
+- `categories`: name, icon
+- `expenses`: amount, category, date, payment method, status, origin, recurrence relation
+- `recurring_expense_rules`: interval config, next due date, active flag
+
+## License
+
+No license specified yet. Add one before public distribution.
