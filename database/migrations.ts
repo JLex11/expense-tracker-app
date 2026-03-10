@@ -48,5 +48,27 @@ export const migrations = schemaMigrations({
 				`),
 			],
 		},
+		{
+			toVersion: 3,
+			steps: [
+				createTable({
+					name: "budgets",
+					columns: [
+						{ name: "category_id", type: "string", isIndexed: true },
+						{ name: "month_key", type: "string", isIndexed: true },
+						{ name: "limit_amount", type: "number" },
+						{ name: "created_at", type: "number" },
+						{ name: "updated_at", type: "number" },
+					],
+				}),
+				unsafeExecuteSql(`
+					create index if not exists "expenses_date_idx" on "expenses" ("date");
+					create index if not exists "expenses_status_idx" on "expenses" ("status");
+					create index if not exists "expenses_origin_idx" on "expenses" ("origin");
+					create index if not exists "expenses_status_origin_date_idx" on "expenses" ("status", "origin", "date");
+					create index if not exists "budgets_category_month_idx" on "budgets" ("category_id", "month_key");
+				`),
+			],
+		},
 	],
 });

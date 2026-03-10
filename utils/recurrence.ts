@@ -1,11 +1,19 @@
+import type { AppLanguage } from "@/hooks/usePrefs";
 import type { RecurrenceUnit, RecurringRuleInput } from "@/types/expenses";
 
 export const RECURRENCE_UNITS: RecurrenceUnit[] = ["day", "week", "month"];
 
-const DAY_LABELS: Record<RecurrenceUnit, [string, string]> = {
-	day: ["día", "días"],
-	week: ["semana", "semanas"],
-	month: ["mes", "meses"],
+const DAY_LABELS: Record<AppLanguage, Record<RecurrenceUnit, [string, string]>> = {
+	es: {
+		day: ["día", "días"],
+		week: ["semana", "semanas"],
+		month: ["mes", "meses"],
+	},
+	en: {
+		day: ["day", "days"],
+		week: ["week", "weeks"],
+		month: ["month", "months"],
+	},
 };
 
 export function startOfLocalDay(timestamp: number) {
@@ -16,10 +24,13 @@ export function startOfLocalDay(timestamp: number) {
 export function formatRecurrenceSummary(
 	intervalValue: number,
 	intervalUnit: RecurrenceUnit,
+	language: AppLanguage = "es",
 ) {
-	const [singular, plural] = DAY_LABELS[intervalUnit];
+	const [singular, plural] = DAY_LABELS[language][intervalUnit];
 	const unitLabel = intervalValue === 1 ? singular : plural;
-	return `Cada ${intervalValue} ${unitLabel}`;
+	return language === "es"
+		? `Cada ${intervalValue} ${unitLabel}`
+		: `Every ${intervalValue} ${unitLabel}`;
 }
 
 export function parseRecurrenceInterval(value: string) {

@@ -1,250 +1,155 @@
+import ExpenseForm from "@/components/expense-form";
 import RecurrenceEditor from "@/components/recurrence-editor";
-import { database } from "@/database";
-import type Category from "@/database/models/Category";
+import { useCategories } from "@/hooks/useCategories";
+import { useI18n } from "@/hooks/useI18n";
+import { usePrefs } from "@/hooks/usePrefs";
 import { createExpenseWithOptionalRecurrence } from "@/services/expenses";
-import type { RecurrenceUnit, RecurringRuleInput } from "@/types/expenses";
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from "@/tw";
+import type {
+  PaymentMethod,
+  RecurrenceUnit,
+  RecurringRuleInput,
+} from "@/types/expenses";
+import { View } from "@/tw";
 import { parseRecurrenceInterval } from "@/utils/recurrence";
-import { Ionicons } from "@expo/vector-icons";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
-import { Alert, Switch } from "react-native";
+import { useState } from "react";
+import { Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function TransactScreen() {
-	const insets = useSafeAreaInsets();
-	const router = useRouter();
-	const [amount, setAmount] = useState("");
-	const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-	const [date, setDate] = useState(new Date());
-	const [showDatePicker, setShowDatePicker] = useState(false);
-	const [paymentMethod, setPaymentMethod] = useState("card");
-	const [note, setNote] = useState("");
-	const [isRecurring, setIsRecurring] = useState(false);
-	const [recurrenceIntervalValue, setRecurrenceIntervalValue] = useState("1");
-	const [recurrenceUnit, setRecurrenceUnit] = useState<RecurrenceUnit>("month");
-	const [categories, setCategories] = useState<Category[]>([]);
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { t, locale } = useI18n();
+  const prefs = usePrefs();
+  const categories = useCategories();
 
-	useEffect(() => {
-		database.get<Category>("categories").query().fetch().then(setCategories);
-	}, []);
+  const [amount, setAmount] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [date, setDate] = useState(new Date());
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
+  const [note, setNote] = useState("");
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurrenceIntervalValue, setRecurrenceIntervalValue] = useState("1");
+  const [recurrenceUnit, setRecurrenceUnit] = useState<RecurrenceUnit>("month");
+  const [isSaving, setIsSaving] = useState(false);
 
-	const handleSave = async () => {
-		if (!amount || Number.isNaN(Number(amount)) || Number(amount) <= 0) {
-			Alert.alert("Error", "Please enter a valid amount greater than 0");
-			return;
-		}
+  const isFormValid =
+    !!amount &&
+    !Number.isNaN(Number(amount)) &&
+    Number(amount) > 0 &&
+    !!selectedCategory &&
+    (!isRecurring || !!parseRecurrenceInterval(recurrenceIntervalValue));
 
-		if (!selectedCategory) {
-			Alert.alert("Error", "Please select a category");
-			return;
-		}
+  const handleSave = async () => {
+    if (!amount || Number.isNaN(Number(amount)) || Number(amount) <= 0) {
+      Alert.alert(t("error"), t("enterValidAmountGreaterThanZero"));
+      return;
+    }
 
-		let recurrence: RecurringRuleInput | null = null;
-		if (isRecurring) {
-			const parsedInterval = parseRecurrenceInterval(recurrenceIntervalValue);
-			if (!parsedInterval) {
-				Alert.alert("Error", "Ingresa un intervalo válido para la recurrencia");
-				return;
-			}
+    if (!selectedCategory) {
+      Alert.alert(t("error"), t("selectCategoryError"));
+      return;
+    }
 
-			recurrence = {
-				intervalValue: parsedInterval,
-				intervalUnit: recurrenceUnit,
-			};
-		}
+    let recurrence: RecurringRuleInput | null = null;
+    if (isRecurring) {
+      const parsedInterval = parseRecurrenceInterval(recurrenceIntervalValue);
+      if (!parsedInterval) {
+        Alert.alert(t("error"), t("invalidRecurrenceInterval"));
+        return;
+      }
 
-		try {
-			const { expenseId } = await createExpenseWithOptionalRecurrence({
-				amount: Number(amount),
-				categoryId: selectedCategory,
-				date: date.getTime(),
-				note,
-				paymentMethod,
-				recurrence,
-			});
+      recurrence = {
+        intervalValue: parsedInterval,
+        intervalUnit: recurrenceUnit,
+      };
+    }
 
-			setAmount("");
-			setNote("");
-			setSelectedCategory(null);
-			setIsRecurring(false);
-			setRecurrenceIntervalValue("1");
-			setRecurrenceUnit("month");
+    setIsSaving(true);
+    try {
+      const { expenseId } = await createExpenseWithOptionalRecurrence({
+        amount: Number(amount),
+        categoryId: selectedCategory,
+        date: date.getTime(),
+        note,
+        paymentMethod,
+        recurrence,
+      });
 
-			if (expenseId) {
-				router.push({
-					pathname: "/movement/[id]",
-					params: { id: expenseId },
-				});
-			}
-		} catch (e) {
-			console.error(e);
-			Alert.alert("Error", "Failed to save expense");
-		}
-	};
+      setAmount("");
+      setNote("");
+      setSelectedCategory(null);
+      setDate(new Date());
+      setPaymentMethod("card");
+      setIsRecurring(false);
+      setRecurrenceIntervalValue("1");
+      setRecurrenceUnit("month");
 
-	return (
-		<ScrollView
-			className="flex-1 bg-white"
-			contentContainerStyle={{
-				paddingTop: insets.top + 20,
-				paddingBottom: 100,
-				paddingHorizontal: 20,
-			}}
-		>
-			<View className="items-center mb-10">
-				<Text className="mb-2 text-base font-medium tracking-[1px] text-gray-400">
-					Amount
-				</Text>
-				<View className="flex-row items-center pb-2 border-b border-gray-200">
-					<Text className="mr-2 text-5xl font-bold text-gray-800">$</Text>
-					<TextInput
-						className="min-w-25 p-0 text-center text-[56px] font-bold text-gray-800"
-						value={amount}
-						onChangeText={setAmount}
-						keyboardType="decimal-pad"
-						placeholder="0.00"
-						placeholderTextColor="#D1D5DB"
-					/>
-				</View>
-			</View>
+      if (expenseId) {
+        router.push({
+          pathname: "/movement/[id]",
+          params: { id: expenseId },
+        });
+      }
+    } catch (e) {
+      console.error(e);
+      Alert.alert(t("error"), t("saveExpenseError"));
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
-			<View className="mb-8">
-				<Text className="mb-4 pl-1 text-[12px] font-bold uppercase tracking-[2px] text-gray-400">
-					Category
-				</Text>
-
-				<View className="flex-row flex-wrap gap-3">
-					{categories.map((cat) => {
-						const isSelected = selectedCategory === cat.id;
-						return (
-							<TouchableOpacity
-								key={cat.id}
-								onPress={() => setSelectedCategory(cat.id)}
-								className={`aspect-square w-[30%] items-center justify-center rounded-3xl border p-4 ${
-									isSelected
-										? "border-primary bg-primary"
-										: "border-gray-100 bg-gray-50"
-								}`}
-								activeOpacity={0.7}
-							>
-								<Ionicons
-									name={cat.icon as keyof typeof Ionicons.glyphMap}
-									size={28}
-									color={isSelected ? "white" : "#6B7280"}
-								/>
-								<Text
-									className={`mt-1 text-xs font-semibold ${isSelected ? "text-white" : "text-gray-600"}`}
-								>
-									{cat.name}
-								</Text>
-							</TouchableOpacity>
-						);
-					})}
-				</View>
-			</View>
-
-			<View className="mb-8">
-				<Text className="mb-4 pl-1 text-[12px] font-bold uppercase tracking-[2px] text-gray-400">
-					Details
-				</Text>
-
-				<View className="p-5 mb-4 border border-gray-100 rounded-3xl bg-gray-50">
-					<View className="flex-row items-center justify-between">
-						<Text className="font-medium text-gray-600">Date</Text>
-						<TouchableOpacity
-							onPress={() => setShowDatePicker(true)}
-							className="px-4 py-2 bg-white border border-gray-100 rounded-xl"
-						>
-							<Text className="font-semibold text-gray-800">
-								{date.toLocaleDateString()}
-							</Text>
-						</TouchableOpacity>
-					</View>
-
-					{showDatePicker && (
-						<DateTimePicker
-							value={date}
-							mode="date"
-							display="default"
-							onChange={(_event, selectedDate) => {
-								setShowDatePicker(false);
-								if (selectedDate) setDate(selectedDate);
-							}}
-						/>
-					)}
-
-					<View className="pt-5 mt-5 border-t border-gray-200">
-						<View className="flex-row items-center justify-between">
-							<Text className="font-medium text-gray-600">Method</Text>
-
-							<View className="flex-row p-1 bg-gray-200 rounded-xl">
-								{["cash", "card", "transfer"].map((method) => {
-									const isActive = paymentMethod === method;
-									return (
-										<TouchableOpacity
-											key={method}
-											onPress={() => setPaymentMethod(method)}
-											className={`rounded-lg px-4 py-2 ${isActive ? "bg-white" : ""}`}
-										>
-											<Text
-												className={`capitalize ${
-													isActive
-														? "font-bold text-gray-800"
-														: "font-medium text-gray-500"
-												}`}
-											>
-												{method}
-											</Text>
-										</TouchableOpacity>
-									);
-								})}
-							</View>
-						</View>
-					</View>
-				</View>
-
-				<TextInput
-					className="p-5 font-medium text-gray-800 border border-gray-100 rounded-3xl bg-gray-50"
-					placeholder="Add a note..."
-					placeholderTextColor="#9CA3AF"
-					value={note}
-					onChangeText={setNote}
-				/>
-
-				<View className="mt-4 rounded-3xl border border-gray-100 bg-gray-50 p-5">
-					<View className="mb-4 flex-row items-center justify-between">
-						<View className="pr-4">
-							<Text className="font-semibold text-gray-900">
-								Gasto recurrente
-							</Text>
-							<Text className="mt-1 text-sm leading-5 text-gray-500">
-								Guarda este gasto ahora y crea los próximos como pendientes.
-							</Text>
-						</View>
-						<Switch value={isRecurring} onValueChange={setIsRecurring} />
-					</View>
-
-					{isRecurring ? (
-						<RecurrenceEditor
-							intervalValue={recurrenceIntervalValue}
-							intervalUnit={recurrenceUnit}
-							onChangeIntervalValue={setRecurrenceIntervalValue}
-							onChangeIntervalUnit={setRecurrenceUnit}
-							helperText="El gasto actual se guarda ahora; los siguientes se crearán como pendientes."
-						/>
-					) : null}
-				</View>
-			</View>
-
-			<TouchableOpacity
-				className="items-center py-5 rounded-3xl bg-primary"
-				onPress={handleSave}
-				activeOpacity={0.8}
-			>
-				<Text className="text-lg font-bold text-white">Save Expense</Text>
-			</TouchableOpacity>
-		</ScrollView>
-	);
+  return (
+    <View className="flex-1 bg-white" style={{ paddingTop: insets.top + 20 }}>
+      <ExpenseForm
+        mode="create"
+        currency={prefs.currency}
+        locale={locale}
+        labels={{
+          amount: t("amount"),
+          category: t("category"),
+          details: t("details"),
+          date: t("date"),
+          method: t("method"),
+          notePlaceholder: t("addNotePlaceholder"),
+          recurringExpense: t("recurringExpense"),
+          recurringExpenseHelp: t("recurringExpenseHelp"),
+          paymentCash: t("paymentCash"),
+          paymentCard: t("paymentCard"),
+          paymentTransfer: t("paymentTransfer"),
+          saveExpense: t("saveExpense"),
+          saveChanges: t("saveChanges"),
+        }}
+        categories={categories.map((cat) => ({
+          id: cat.id,
+          name: cat.name,
+          icon: cat.icon,
+        }))}
+        amount={amount}
+        onChangeAmount={setAmount}
+        selectedCategoryId={selectedCategory}
+        onSelectCategory={setSelectedCategory}
+        date={date}
+        onChangeDate={setDate}
+        paymentMethod={paymentMethod}
+        onChangePaymentMethod={setPaymentMethod}
+        note={note}
+        onChangeNote={setNote}
+        isRecurring={isRecurring}
+        onChangeIsRecurring={setIsRecurring}
+        recurrenceEditor={
+          <RecurrenceEditor
+            intervalValue={recurrenceIntervalValue}
+            intervalUnit={recurrenceUnit}
+            onChangeIntervalValue={setRecurrenceIntervalValue}
+            onChangeIntervalUnit={setRecurrenceUnit}
+            helperText={t("recurringExpenseHelperCurrent")}
+          />
+        }
+        onSubmit={handleSave}
+        submitDisabled={isSaving || !isFormValid}
+        showRecurringToggle
+      />
+    </View>
+  );
 }

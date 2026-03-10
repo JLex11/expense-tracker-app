@@ -1,23 +1,48 @@
 import { Database } from "@nozbe/watermelondb";
+import LokiJSAdapter from "@nozbe/watermelondb/adapters/lokijs";
 import SQLiteAdapter from "@nozbe/watermelondb/adapters/sqlite";
+import Budget from "./models/Budget";
 import Category from "./models/Category";
 import Expense from "./models/Expense";
 import RecurringExpenseRule from "./models/RecurringExpenseRule";
 import { migrations } from "./migrations";
 import schema from "./schema";
 
-const adapter = new SQLiteAdapter({
-	schema,
-	migrations,
-	jsi: true /* use JSI for Expo SDK 52 */,
-	onSetUpError: (error) => {
-		console.error("Database setup error:", error);
-	},
-});
+const databaseSetupError = (error: Error) => {
+	console.error("Database setup error:", error);
+};
+
+function createAdapter() {
+	try {
+		return new SQLiteAdapter({
+			schema,
+			migrations,
+			// Prefer the native SQLite adapter when the build exposes WatermelonDB.
+			jsi: false,
+			onSetUpError: databaseSetupError,
+		});
+	} catch (error) {
+		console.warn(
+			"Falling back to LokiJS adapter because WatermelonDB native SQLite is unavailable.",
+			error,
+		);
+
+		return new LokiJSAdapter({
+			dbName: "expense-tracker-app-fallback",
+			schema,
+			migrations,
+			useWebWorker: false,
+			useIncrementalIndexedDB: false,
+			onSetUpError: databaseSetupError,
+		});
+	}
+}
+
+const adapter = createAdapter();
 
 export const database = new Database({
 	adapter,
-	modelClasses: [Category, Expense, RecurringExpenseRule],
+	modelClasses: [Budget, Category, Expense, RecurringExpenseRule],
 });
 
 export const seedCategories = async () => {

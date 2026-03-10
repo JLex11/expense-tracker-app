@@ -1,20 +1,11 @@
 import type Category from "@/database/models/Category";
+import { useI18n } from "@/hooks/useI18n";
 import { useExpenses } from "@/hooks/useExpenses";
 import { usePrefs } from "@/hooks/usePrefs";
 import { Text, View } from "@/tw";
+import { formatCurrency } from "@/utils/currency";
 import { Ionicons } from "@expo/vector-icons";
 import { useMemo } from "react";
-
-function timeAgo(timestamp: number): string {
-	const diff = Date.now() - timestamp;
-	const minutes = Math.floor(diff / 60000);
-	if (minutes < 1) return "Ahora";
-	if (minutes < 60) return `Hace ${minutes}m`;
-	const hours = Math.floor(minutes / 60);
-	if (hours < 24) return `Hace ${hours}h`;
-	const days = Math.floor(hours / 24);
-	return `Hace ${days}d`;
-}
 
 interface InfoWidgetProps {
 	categories: Category[];
@@ -23,6 +14,7 @@ interface InfoWidgetProps {
 export default function InfoWidget({ categories }: InfoWidgetProps) {
 	const expenses = useExpenses();
 	const prefs = usePrefs();
+	const { t } = useI18n();
 
 	const { todayTotal, lastTransaction, weekTotal, prevWeekTotal, topCategory } =
 		useMemo(() => {
@@ -89,11 +81,11 @@ export default function InfoWidget({ categories }: InfoWidgetProps) {
 			if (catEntries.length > 0) {
 				const [topId, topAmount] = catEntries.sort((a, b) => b[1] - a[1])[0];
 				const cat = categories.find((c) => c.id === topId);
-				topCat = {
-					name: cat?.name || "Otro",
-					icon: cat?.icon || "help",
-					percentage: monthTotal > 0 ? (topAmount / monthTotal) * 100 : 0,
-				};
+					topCat = {
+						name: cat?.name || t("unknown"),
+						icon: cat?.icon || "help",
+						percentage: monthTotal > 0 ? (topAmount / monthTotal) * 100 : 0,
+					};
 			}
 
 			// Last transaction enriched
@@ -105,13 +97,23 @@ export default function InfoWidget({ categories }: InfoWidgetProps) {
 			} | null = null;
 			if (latest) {
 				const cat = categories.find((c) => c.id === latest?.categoryId);
-				lastTx = {
-					amount: latest.amount,
-					categoryName: cat?.name || "Otro",
-					categoryIcon: cat?.icon || "help",
-					timeAgo: timeAgo(latest.date),
-				};
-			}
+					lastTx = {
+						amount: latest.amount,
+						categoryName: cat?.name || t("unknown"),
+						categoryIcon: cat?.icon || "help",
+						timeAgo:
+							(() => {
+								const diff = Date.now() - latest.date;
+								const minutes = Math.floor(diff / 60000);
+								if (minutes < 1) return t("timeAgoNow");
+								if (minutes < 60) return t("timeAgoMinutes", { value: minutes });
+								const hours = Math.floor(minutes / 60);
+								if (hours < 24) return t("timeAgoHours", { value: hours });
+								const days = Math.floor(hours / 24);
+								return t("timeAgoDays", { value: days });
+							})(),
+					};
+				}
 
 			return {
 				todayTotal: today,
@@ -120,20 +122,10 @@ export default function InfoWidget({ categories }: InfoWidgetProps) {
 				prevWeekTotal: prevWeek,
 				topCategory: topCat,
 			};
-		}, [expenses, categories, prefs.weekStart]);
+			}, [expenses, categories, prefs.weekStart, t]);
 
 	const weekDiff = weekTotal - prevWeekTotal;
 	const weekTrend = weekDiff > 0 ? "up" : weekDiff < 0 ? "down" : "same";
-	const currencySymbol =
-		prefs.currency === "JPY" || prefs.currency === "CNY"
-			? "¥"
-			: prefs.currency === "EUR"
-				? "€"
-				: prefs.currency === "GBP"
-					? "£"
-					: prefs.currency === "BRL"
-						? "R$"
-						: "$";
 
 	return (
 		<View className="px-5 mb-6">
@@ -147,13 +139,14 @@ export default function InfoWidget({ categories }: InfoWidgetProps) {
 							color="white"
 							style={{ marginRight: 6 }}
 						/>
-						<Text className="text-xs font-medium text-blue-100">Hoy</Text>
+						<Text className="text-xs font-medium text-blue-100">
+							{t("infoToday")}
+						</Text>
+						</View>
+						<Text className="text-2xl font-bold text-white">
+							{formatCurrency(todayTotal, prefs.currency)}
+						</Text>
 					</View>
-					<Text className="text-2xl font-bold text-white">
-						{currencySymbol}
-						{todayTotal.toFixed(2)}
-					</Text>
-				</View>
 
 				{/* Weekly summary */}
 				<View className="flex-1 min-w-[46%] p-4 bg-white border border-gray-100 rounded-2xl">
@@ -164,12 +157,13 @@ export default function InfoWidget({ categories }: InfoWidgetProps) {
 							color="#6b7280"
 							style={{ marginRight: 6 }}
 						/>
-						<Text className="text-xs font-medium text-gray-500">Semana</Text>
-					</View>
-					<Text className="text-2xl font-bold text-gray-900">
-						{currencySymbol}
-						{weekTotal.toFixed(2)}
-					</Text>
+						<Text className="text-xs font-medium text-gray-500">
+							{t("infoWeek")}
+						</Text>
+						</View>
+						<Text className="text-2xl font-bold text-gray-900">
+							{formatCurrency(weekTotal, prefs.currency)}
+						</Text>
 					{prevWeekTotal > 0 && (
 						<View className="flex-row items-center mt-1">
 							<Ionicons
@@ -197,11 +191,12 @@ export default function InfoWidget({ categories }: InfoWidgetProps) {
 											? "text-green-500"
 											: "text-gray-400"
 								}`}
-							>
-								{currencySymbol}
-								{Math.abs(weekDiff).toFixed(2)} vs anterior
-							</Text>
-						</View>
+								>
+									{t("infoVsPrevious", {
+										amount: formatCurrency(Math.abs(weekDiff), prefs.currency),
+									})}
+								</Text>
+							</View>
 					)}
 				</View>
 
@@ -215,7 +210,7 @@ export default function InfoWidget({ categories }: InfoWidgetProps) {
 							style={{ marginRight: 6 }}
 						/>
 						<Text className="text-xs font-medium text-gray-500">
-							Último gasto
+							{t("infoLastExpense")}
 						</Text>
 					</View>
 					{lastTransaction ? (
@@ -232,20 +227,22 @@ export default function InfoWidget({ categories }: InfoWidgetProps) {
 									{lastTransaction.categoryName}
 								</Text>
 							</View>
-							<View className="flex-row items-end justify-between mt-1">
-								<Text className="text-lg font-bold text-gray-900">
-									{currencySymbol}
-									{Math.abs(lastTransaction.amount).toFixed(2)}
-								</Text>
+								<View className="flex-row items-end justify-between mt-1">
+									<Text className="text-lg font-bold text-gray-900">
+										{formatCurrency(
+											Math.abs(lastTransaction.amount),
+											prefs.currency,
+										)}
+									</Text>
 								<Text className="text-xs text-gray-400">
 									{lastTransaction.timeAgo}
 								</Text>
 							</View>
 						</>
-					) : (
-						<Text className="text-sm text-gray-400">Sin gastos aún</Text>
-					)}
-				</View>
+						) : (
+							<Text className="text-sm text-gray-400">{t("infoNoExpensesYet")}</Text>
+						)}
+					</View>
 
 				{/* Top category of the month */}
 				<View className="flex-1 min-w-[46%] p-4 bg-white border border-gray-100 rounded-2xl">
@@ -257,7 +254,7 @@ export default function InfoWidget({ categories }: InfoWidgetProps) {
 							style={{ marginRight: 6 }}
 						/>
 						<Text className="text-xs font-medium text-gray-500">
-							Top del mes
+							{t("infoTopMonth")}
 						</Text>
 					</View>
 					{topCategory ? (
@@ -286,10 +283,10 @@ export default function InfoWidget({ categories }: InfoWidgetProps) {
 								</Text>
 							</View>
 						</>
-					) : (
-						<Text className="text-sm text-gray-400">Sin datos</Text>
-					)}
-				</View>
+						) : (
+							<Text className="text-sm text-gray-400">{t("infoNoData")}</Text>
+						)}
+					</View>
 			</View>
 		</View>
 	);
