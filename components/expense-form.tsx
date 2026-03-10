@@ -57,6 +57,7 @@ type ExpenseFormProps = {
   onSubmit: () => void;
   submitDisabled?: boolean;
   showRecurringToggle?: boolean;
+  extraBottomPadding?: number;
 };
 
 const PAYMENT_METHODS: PaymentMethod[] = ["cash", "card", "transfer"];
@@ -112,6 +113,7 @@ export default function ExpenseForm({
   onSubmit,
   submitDisabled = false,
   showRecurringToggle = true,
+  extraBottomPadding = 0,
 }: ExpenseFormProps) {
   const submitLabel = mode === "edit" ? labels.saveChanges : labels.saveExpense;
 
@@ -272,7 +274,7 @@ export default function ExpenseForm({
         </View>
       </ScrollView>
 
-      <View className="px-5 pb-8 pt-4 bg-white border-t border-gray-100">
+      <View className="px-5 pt-4 bg-white border-t border-gray-100" style={{ paddingBottom: 32 + extraBottomPadding }}>
         <TouchableOpacity
           className={`items-center py-5 rounded-3xl ${
             submitDisabled ? "bg-gray-300" : "bg-primary"

@@ -105,6 +105,7 @@ export default function TransactScreen() {
         mode="create"
         currency={prefs.currency}
         locale={locale}
+        extraBottomPadding={insets.bottom + 50}
         labels={{
           amount: t("amount"),
           category: t("category"),
