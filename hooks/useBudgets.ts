@@ -4,19 +4,34 @@ import { Q } from "@nozbe/watermelondb";
 import { useEffect, useState } from "react";
 
 export function useBudgets(monthKey?: string) {
-	const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
 
-	useEffect(() => {
-		const collection = database.get<Budget>("budgets");
-		const query = monthKey
-			? collection.query(Q.where("month_key", monthKey), Q.sortBy("created_at", Q.asc))
-			: collection.query(Q.sortBy("created_at", Q.asc));
-		const subscription = query.observe().subscribe((data) => {
-			setBudgets(data);
-		});
+  useEffect(() => {
+    let active = true;
 
-		return () => subscription.unsubscribe();
-	}, [monthKey]);
+    const collection = database.get<Budget>("budgets");
+    const query = monthKey
+      ? collection.query(
+          Q.where("month_key", monthKey),
+          Q.sortBy("created_at", Q.asc),
+        )
+      : collection.query(Q.sortBy("created_at", Q.asc));
 
-	return budgets;
+    // Initial fetch to populate data immediately on mount,
+    // before the observe() subscription emits for the first time.
+    query.fetch().then((data) => {
+      if (active) setBudgets(data);
+    });
+
+    const subscription = query.observe().subscribe((data) => {
+      if (active) setBudgets(data);
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, [monthKey]);
+
+  return budgets;
 }
