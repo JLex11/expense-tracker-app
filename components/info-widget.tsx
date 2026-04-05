@@ -1,6 +1,6 @@
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/hooks/usePrefs";
-import { Text, View } from "@/tw";
+import { Text, TouchableOpacity, View } from "@/tw";
 import { formatCurrency } from "@/utils/currency";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -8,12 +8,16 @@ interface InfoWidgetProps {
 	todayTotal: number;
 	weekTotal: number;
 	prevWeekTotal: number;
+	onPressToday?: () => void;
+	onPressWeek?: () => void;
 }
 
 export default function InfoWidget({
 	todayTotal,
 	weekTotal,
 	prevWeekTotal,
+	onPressToday,
+	onPressWeek,
 }: InfoWidgetProps) {
 	const prefs = usePrefs();
 	const { t } = useI18n();
@@ -25,7 +29,11 @@ export default function InfoWidget({
 		<View className="px-5 mb-6">
 			<View className="flex-row flex-wrap gap-3">
 				{/* Today total */}
-				<View className="flex-1 min-w-[46%] p-4 bg-blue-500 rounded-2xl">
+				<TouchableOpacity
+					className="flex-1 min-w-[46%] p-4 bg-blue-500 rounded-2xl"
+					onPress={onPressToday}
+					activeOpacity={0.85}
+				>
 					<View className="flex-row items-center mb-2">
 						<Ionicons
 							name="today-outline"
@@ -36,14 +44,18 @@ export default function InfoWidget({
 						<Text className="text-xs font-medium text-blue-100">
 							{t("infoToday")}
 						</Text>
-						</View>
-						<Text className="text-2xl font-bold text-white">
-							{formatCurrency(todayTotal, prefs.currency)}
-						</Text>
 					</View>
+					<Text className="text-2xl font-bold text-white">
+						{formatCurrency(todayTotal, prefs.currency)}
+					</Text>
+				</TouchableOpacity>
 
 				{/* Weekly summary */}
-				<View className="flex-1 min-w-[46%] p-4 bg-white border border-gray-100 rounded-2xl">
+				<TouchableOpacity
+					className="flex-1 min-w-[46%] p-4 bg-white border border-gray-100 rounded-2xl"
+					onPress={onPressWeek}
+					activeOpacity={0.85}
+				>
 					<View className="flex-row items-center mb-2">
 						<Ionicons
 							name="trending-up"
@@ -54,10 +66,10 @@ export default function InfoWidget({
 						<Text className="text-xs font-medium text-gray-500">
 							{t("infoWeek")}
 						</Text>
-						</View>
-						<Text className="text-2xl font-bold text-gray-900">
-							{formatCurrency(weekTotal, prefs.currency)}
-						</Text>
+					</View>
+					<Text className="text-2xl font-bold text-gray-900">
+						{formatCurrency(weekTotal, prefs.currency)}
+					</Text>
 					{prevWeekTotal > 0 && (
 						<View className="flex-row items-center mt-1">
 							<Ionicons
@@ -84,15 +96,15 @@ export default function InfoWidget({
 										: weekTrend === "down"
 											? "text-green-500"
 											: "text-gray-400"
-								}`}
+									}`}
 								>
 									{t("infoVsPrevious", {
 										amount: formatCurrency(Math.abs(weekDiff), prefs.currency),
 									})}
 								</Text>
-							</View>
+						</View>
 					)}
-				</View>
+				</TouchableOpacity>
 			</View>
 		</View>
 	);

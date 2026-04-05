@@ -11,11 +11,13 @@ export interface HomeInsightsResult {
 	weekTotal: number;
 	prevWeekTotal: number;
 	topCategory: {
+		id: string;
 		name: string;
 		icon: string;
 		percentage: number;
 	} | null;
 	lastTransaction: {
+		id: string;
 		amount: number;
 		categoryName: string;
 		categoryIcon: string;
@@ -69,8 +71,9 @@ export function useHomeInsights(
 		let prevWeek = 0;
 		const monthCats: Record<string, number> = {};
 		let monthTotal = 0;
-		let latest: { amount: number; categoryId: string; date: number } | null =
-			null;
+		let latest:
+			| { id: string; amount: number; categoryId: string; date: number }
+			| null = null;
 
 		for (const exp of expenses) {
 			const val = Math.abs(exp.amount);
@@ -86,6 +89,7 @@ export function useHomeInsights(
 			}
 			if (!latest || exp.date > latest.date) {
 				latest = {
+					id: exp.id,
 					amount: exp.amount,
 					categoryId: exp.categoryId,
 					date: exp.date,
@@ -100,6 +104,7 @@ export function useHomeInsights(
 			const [topId, topAmount] = catEntries.sort((a, b) => b[1] - a[1])[0];
 			const cat = categories.find((c) => c.id === topId);
 			topCat = {
+				id: topId,
 				name: cat?.name || t("unknown"),
 				icon: cat?.icon || "help",
 				percentage: monthTotal > 0 ? (topAmount / monthTotal) * 100 : 0,
@@ -111,6 +116,7 @@ export function useHomeInsights(
 		if (latest) {
 			const cat = categories.find((c) => c.id === latest?.categoryId);
 			lastTx = {
+				id: latest.id,
 				amount: latest.amount,
 				categoryName: cat?.name || t("unknown"),
 				categoryIcon: cat?.icon || "help",

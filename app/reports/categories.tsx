@@ -6,8 +6,8 @@ import { ScrollView, Text, TouchableOpacity, View } from "@/tw";
 import { formatCurrency } from "@/utils/currency";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useRouter } from "expo-router";
-import { useMemo, useState } from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useMemo, useState } from "react";
 import { Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -26,6 +26,14 @@ function getStartOfWeek(now: Date, weekStart: "Sunday" | "Monday") {
 	return startOfWeek.getTime();
 }
 
+function normalizeFilterParam(value: string | string[] | undefined): FilterType {
+	const raw = Array.isArray(value) ? value[0] : value;
+	if (raw === "week" || raw === "month" || raw === "custom") {
+		return raw;
+	}
+	return "month";
+}
+
 export default function CategoriesReportScreen() {
 	const insets = useSafeAreaInsets();
 	const router = useRouter();
@@ -33,8 +41,13 @@ export default function CategoriesReportScreen() {
 	const prefs = usePrefs();
 	const categories = useCategories();
 	const expenses = useExpenses();
+	const { filter: filterParam } = useLocalSearchParams<{
+		filter?: string | string[];
+	}>();
 
-	const [filter, setFilter] = useState<FilterType>("month");
+	const [filter, setFilter] = useState<FilterType>(() =>
+		normalizeFilterParam(filterParam),
+	);
 	const [customStartDate, setCustomStartDate] = useState(() => {
 		const date = new Date();
 		date.setDate(date.getDate() - 30);
@@ -49,6 +62,13 @@ export default function CategoriesReportScreen() {
 		{ key: "month", label: t("filterMonth") },
 		{ key: "custom", label: t("filterCustom") },
 	];
+
+	useEffect(() => {
+		setFilter((current) => {
+			const next = normalizeFilterParam(filterParam);
+			return current === next ? current : next;
+		});
+	}, [filterParam]);
 
 	const reportRows = useMemo(() => {
 		const now = new Date();

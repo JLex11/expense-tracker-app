@@ -16,12 +16,32 @@ import {
 } from "@/utils/months";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useRouter } from "expo-router";
-import { useMemo, useState } from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useMemo, useState } from "react";
 import { Alert, Modal, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type FilterType = "today" | "week" | "month" | "custom";
+
+function normalizeHistoryFilter(
+	value: string | string[] | undefined,
+): FilterType {
+	const raw = Array.isArray(value) ? value[0] : value;
+	if (
+		raw === "today" ||
+		raw === "week" ||
+		raw === "month" ||
+		raw === "custom"
+	) {
+		return raw;
+	}
+	return "month";
+}
+
+function normalizeSearch(value: string | string[] | undefined): string {
+	const raw = Array.isArray(value) ? value[0] : value;
+	return typeof raw === "string" ? raw : "";
+}
 
 function getHistoryStartOfWeek(now: Date, weekStart: "Sunday" | "Monday") {
 	const startOfToday = new Date(
@@ -61,13 +81,21 @@ function formatHistoryGroup(
 export default function BudgetScreen() {
 	const insets = useSafeAreaInsets();
 	const router = useRouter();
+	const { filter: filterParam, search: searchParam } = useLocalSearchParams<{
+		filter?: string | string[];
+		search?: string | string[];
+	}>();
 	const prefs = usePrefs();
 	const { t, language, locale } = useI18n();
 	const expenses = useExpenses();
 	const categories = useCategories();
 
-	const [filter, setFilter] = useState<FilterType>("month");
-	const [searchQuery, setSearchQuery] = useState("");
+	const [filter, setFilter] = useState<FilterType>(() =>
+		normalizeHistoryFilter(filterParam),
+	);
+	const [searchQuery, setSearchQuery] = useState(() =>
+		normalizeSearch(searchParam),
+	);
 	const [selectedMonthKey, setSelectedMonthKey] = useState(() =>
 		getMonthKey(Date.now()),
 	);
@@ -91,6 +119,20 @@ export default function BudgetScreen() {
 		{ key: "month", label: t("filterMonth") },
 		{ key: "custom", label: t("filterCustom") },
 	];
+
+	useEffect(() => {
+		setFilter((current) => {
+			const next = normalizeHistoryFilter(filterParam);
+			return current === next ? current : next;
+		});
+	}, [filterParam]);
+
+	useEffect(() => {
+		setSearchQuery((current) => {
+			const next = normalizeSearch(searchParam);
+			return current === next ? current : next;
+		});
+	}, [searchParam]);
 
 	const categoryMap = useMemo(
 		() => new Map(categories.map((category) => [category.id, category])),

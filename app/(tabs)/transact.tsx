@@ -11,14 +11,17 @@ import type {
 } from "@/types/expenses";
 import { View } from "@/tw";
 import { parseRecurrenceInterval } from "@/utils/recurrence";
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import { Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function TransactScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { recurring } = useLocalSearchParams<{
+    recurring?: string | string[];
+  }>();
   const { t, locale } = useI18n();
   const prefs = usePrefs();
   const categories = useCategories();
@@ -32,6 +35,13 @@ export default function TransactScreen() {
   const [recurrenceIntervalValue, setRecurrenceIntervalValue] = useState("1");
   const [recurrenceUnit, setRecurrenceUnit] = useState<RecurrenceUnit>("month");
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    const raw = Array.isArray(recurring) ? recurring[0] : recurring;
+    if (raw === "1" || raw === "true") {
+      setIsRecurring(true);
+    }
+  }, [recurring]);
 
   const isFormValid =
     !!amount &&
