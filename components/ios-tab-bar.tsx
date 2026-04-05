@@ -1,15 +1,16 @@
+import { useColorScheme } from "@/hooks/use-color-scheme";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import * as Haptics from "expo-haptics";
 import { useEffect } from "react";
 import { Platform, Pressable, StyleSheet, View } from "react-native";
 import Animated, {
-  interpolate,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
+    interpolate,
+    useAnimatedStyle,
+    useSharedValue,
+    withSpring,
+    withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useColorScheme } from "@/hooks/use-color-scheme";
 
 const SPRING_CONFIG = {
   damping: 22,
@@ -17,9 +18,10 @@ const SPRING_CONFIG = {
   mass: 0.5,
 };
 
+const ACTIVE_STATE_DURATION_MS = 170;
+
 function TabItem({
   route,
-  index,
   isActive,
   onPress,
   onLongPress,
@@ -29,7 +31,6 @@ function TabItem({
   isDark,
 }: {
   route: BottomTabBarProps["state"]["routes"][number];
-  index: number;
   isActive: boolean;
   onPress: () => void;
   onLongPress: () => void;
@@ -42,7 +43,9 @@ function TabItem({
   const scaleAnim = useSharedValue(1);
 
   useEffect(() => {
-    activeAnim.value = withSpring(isActive ? 1 : 0, SPRING_CONFIG);
+    activeAnim.value = withTiming(isActive ? 1 : 0, {
+      duration: ACTIVE_STATE_DURATION_MS,
+    });
   }, [isActive, activeAnim]);
 
   const pillStyle = useAnimatedStyle(() => ({
@@ -172,7 +175,6 @@ export function IOSTabBar({
             <TabItem
               key={route.key}
               route={route}
-              index={index}
               isActive={isActive}
               descriptors={descriptors}
               activeColor={activeColor}
@@ -220,11 +222,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     borderWidth: StyleSheet.hairlineWidth,
     // iOS shadow
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
     // Android elevation
-    elevation: 16,
+    elevation: 8,
   },
   tabPressable: {
     flex: 1,
