@@ -5,9 +5,9 @@ import { usePrefs } from "@/hooks/usePrefs";
 import { ScrollView, Text, TouchableOpacity, View } from "@/tw";
 import { formatCurrency } from "@/utils/currency";
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -53,7 +53,11 @@ export default function CategoriesReportScreen() {
 	const reportRows = useMemo(() => {
 		const now = new Date();
 		const startOfWeek = getStartOfWeek(now, prefs.weekStart);
-		const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+		const startOfMonth = new Date(
+			now.getFullYear(),
+			now.getMonth(),
+			1,
+		).getTime();
 		const startOfCustomRange = new Date(
 			customStartDate.getFullYear(),
 			customStartDate.getMonth(),
@@ -221,7 +225,10 @@ export default function CategoriesReportScreen() {
 				</View>
 
 				{reportRows.rows.length === 0 ? (
-					<View className="mt-12 items-center rounded-3xl border border-dashed border-gray-200 bg-white px-6 py-10">
+					<View
+						key="categories-empty"
+						className="mt-12 items-center rounded-3xl border border-dashed border-gray-200 bg-white px-6 py-10"
+					>
 						<View className="mb-4 h-14 w-14 items-center justify-center rounded-full bg-gray-100">
 							<Ionicons name="pie-chart-outline" size={26} color="#9ca3af" />
 						</View>
@@ -233,7 +240,7 @@ export default function CategoriesReportScreen() {
 						</Text>
 					</View>
 				) : (
-					<View className="gap-3">
+					<View key="categories-list" className="gap-3 will-change-variable">
 						{reportRows.rows.map((row) => (
 							<View
 								key={row.categoryId}
@@ -249,7 +256,9 @@ export default function CategoriesReportScreen() {
 											/>
 										</View>
 										<View>
-											<Text className="font-bold text-gray-900">{row.name}</Text>
+											<Text className="font-bold text-gray-900">
+												{row.name}
+											</Text>
 											<Text className="text-xs text-gray-500">
 												{row.percentage.toFixed(1)}%
 											</Text>

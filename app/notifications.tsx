@@ -1,10 +1,10 @@
+import { useI18n } from "@/hooks/useI18n";
 import { useNotifications } from "@/hooks/useNotifications";
 import {
-	clearNotifications,
-	markAllNotificationsAsRead,
-	markNotificationAsRead,
+    clearNotifications,
+    markAllNotificationsAsRead,
+    markNotificationAsRead,
 } from "@/hooks/usePrefs";
-import { useI18n } from "@/hooks/useI18n";
 import { ScrollView, Text, TouchableOpacity, View } from "@/tw";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -21,7 +21,8 @@ export default function NotificationsScreen() {
 	const insets = useSafeAreaInsets();
 	const router = useRouter();
 	const { t } = useI18n();
-	const { notifications, unreadCount, persistedUnreadCount } = useNotifications();
+	const { notifications, unreadCount, persistedUnreadCount } =
+		useNotifications();
 
 	const handleMarkAllAsRead = () => {
 		markAllNotificationsAsRead();
@@ -106,9 +107,13 @@ export default function NotificationsScreen() {
 
 			<ScrollView contentContainerClassName="px-5 pb-24 pt-5">
 				{notifications.length === 0 ? (
-					<View className="mt-20 items-center">
+					<View key="notifications-empty" className="mt-20 items-center">
 						<View className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-gray-200/60">
-							<Ionicons name="notifications-off-outline" size={30} color="#6b7280" />
+							<Ionicons
+								name="notifications-off-outline"
+								size={30}
+								color="#6b7280"
+							/>
 						</View>
 						<Text className="text-lg font-bold text-gray-800">
 							{t("noNotifications")}
@@ -118,7 +123,7 @@ export default function NotificationsScreen() {
 						</Text>
 					</View>
 				) : (
-					<View className="gap-3">
+					<View key="notifications-list" className="gap-3 will-change-variable">
 						{notifications.map((item) => {
 							const icon = ICON_BY_TYPE[item.type] ?? "notifications-outline";
 							const isUnread = item.readAt === null;
@@ -133,7 +138,9 @@ export default function NotificationsScreen() {
 											markNotificationAsRead(item.id);
 										}
 										if (item.actionRoute) {
-											router.push(item.actionRoute as any);
+											router.push(
+												item.actionRoute as Parameters<typeof router.push>[0],
+											);
 										}
 									}}
 									className={`rounded-3xl border p-4 ${
@@ -164,7 +171,9 @@ export default function NotificationsScreen() {
 												) : null}
 											</View>
 
-											<Text className="mt-1 text-sm leading-5 text-gray-600">{body}</Text>
+											<Text className="mt-1 text-sm leading-5 text-gray-600">
+												{body}
+											</Text>
 
 											<Text className="mt-2 text-xs text-gray-400">
 												{new Date(item.createdAt).toLocaleString()}
