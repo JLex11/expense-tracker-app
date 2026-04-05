@@ -1,7 +1,7 @@
 export type ExpenseStatus = "confirmed" | "pending" | "skipped";
 export type ExpenseOrigin = "manual" | "recurring";
 export type PaymentMethod = "cash" | "card" | "transfer";
-export type RecurrenceUnit = "day" | "week" | "month";
+export type RecurrenceUnit = "day" | "week" | "month" | "year";
 
 export interface RecurringRuleInput {
   intervalValue: number;

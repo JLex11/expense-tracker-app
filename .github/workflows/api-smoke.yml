@@ -1,0 +1,25 @@
+name: API Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: API base URL including /api
+        required: true
+        default: https://expense-tracker-api.anime-api.workers.dev/api
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run test:api-smoke
+        env:
+          EXPENSE_TRACKER_SMOKE_API_URL: ${{ inputs.api_url }}
+      - run: bun run test:api-sync-conflicts
+        env:
+          EXPENSE_TRACKER_SMOKE_API_URL: ${{ inputs.api_url }}

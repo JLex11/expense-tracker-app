@@ -1,4 +1,4 @@
-import { database } from "@/database";
+import { createUuid, database } from "@/database";
 import type Category from "@/database/models/Category";
 import type Expense from "@/database/models/Expense";
 import { loadPrefs } from "@/hooks/usePrefs";
@@ -18,6 +18,7 @@ export async function createCategory(input: { name: string; icon: string }) {
 
 	return database.write(async () => {
 		const created = await database.get<Category>("categories").create((draft) => {
+			draft._raw.id = createUuid();
 			draft.name = normalizedName;
 			draft.icon = input.icon;
 		});
@@ -66,6 +67,6 @@ export async function deleteCategory(categoryId: string) {
 
 	await database.write(async () => {
 		const category = await database.get<Category>("categories").find(categoryId);
-		await category.destroyPermanently();
+		await category.markAsDeleted();
 	});
 }

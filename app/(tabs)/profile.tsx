@@ -7,24 +7,27 @@ import {
 } from "@/hooks/usePrefs";
 import { useCategories } from "@/hooks/useCategories";
 import { useI18n } from "@/hooks/useI18n";
+import { useSync } from "@/hooks/useSync";
 import {
 	createCategory,
 	deleteCategory,
 	updateCategory,
 } from "@/services/categories";
+import { register, login, logout, isLoggedIn } from "@/services/auth";
 import { exportAppBackup, importAppBackup } from "@/services/backup";
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from "@/tw";
 import { getWeekStartLabel } from "@/utils/i18n";
 import { exportExpensesCSV } from "@/utils/export-csv";
 import { Ionicons } from "@expo/vector-icons";
 import * as LocalAuthentication from "expo-local-authentication";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
 	Alert,
 	KeyboardAvoidingView,
 	Modal,
 	Platform,
 	Switch,
+	ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -64,7 +67,8 @@ export default function ProfileScreen() {
 	const insets = useSafeAreaInsets();
 	const prefs = usePrefs();
 	const categories = useCategories();
-	const { t, language } = useI18n();
+	const { t, language, locale } = useI18n();
+	const { syncNow, isSyncing, lastSyncedAt, error } = useSync();
 
 	const [editProfileVisible, setEditProfileVisible] = useState(false);
 	const [currencyPickerVisible, setCurrencyPickerVisible] = useState(false);
@@ -77,6 +81,21 @@ export default function ProfileScreen() {
 	const [categoryName, setCategoryName] = useState("");
 	const [categoryIcon, setCategoryIcon] =
 		useState<(typeof CATEGORY_ICONS)[number]>("cart");
+
+	const [authModalVisible, setAuthModalVisible] = useState(false);
+	const [authMode, setAuthMode] = useState<"login" | "register">("login");
+	const [authEmail, setAuthEmail] = useState("");
+	const [authPassword, setAuthPassword] = useState("");
+	const [isAuthenticating, setIsAuthenticating] = useState(false);
+	const [userLoggedIn, setUserLoggedIn] = useState(false);
+
+	useEffect(() => {
+		const checkLogin = async () => {
+			const logged = await isLoggedIn();
+			setUserLoggedIn(logged);
+		};
+		checkLogin();
+	}, []);
 
 	const updatePrefs = (updates: Partial<Prefs>) => {
 		const next = { ...prefs, ...updates };
@@ -159,7 +178,7 @@ export default function ProfileScreen() {
 		setEditingCategoryId(category.id);
 		setCategoryName(category.name);
 		setCategoryIcon(
-			CATEGORY_ICONS.includes(category.icon as any)
+			(CATEGORY_ICONS as readonly string[]).includes(category.icon)
 				? (category.icon as (typeof CATEGORY_ICONS)[number])
 				: "cart",
 		);
@@ -242,6 +261,59 @@ export default function ProfileScreen() {
 		);
 	};
 
+	const handleAuth = async () => {
+		if (!authEmail || !authPassword) {
+			Alert.alert(t("error"), t("enterValidEmailPassword"));
+			return;
+		}
+
+		setIsAuthenticating(true);
+		try {
+			if (authMode === "login") {
+				await login(authEmail, authPassword);
+			} else {
+				await register(authEmail, authPassword);
+			}
+			setUserLoggedIn(true);
+			setAuthModalVisible(false);
+			setAuthEmail("");
+			setAuthPassword("");
+			// Automatically sync after login
+			await syncNow();
+		} catch (error) {
+			console.error(error);
+			Alert.alert(t("error"), error instanceof Error ? error.message : t("authFailed"));
+		} finally {
+			setIsAuthenticating(false);
+		}
+	};
+
+	const handleManualSync = async () => {
+		try {
+			await syncNow();
+		} catch (syncError) {
+			console.error(syncError);
+			Alert.alert(
+				t("error"),
+				syncError instanceof Error ? syncError.message : t("error"),
+			);
+		}
+	};
+
+	const handleLogout = async () => {
+		Alert.alert(t("logout"), t("confirmLogout"), [
+			{ text: t("cancel"), style: "cancel" },
+			{
+				text: t("logout"),
+				style: "destructive",
+				onPress: async () => {
+					await logout();
+					setUserLoggedIn(false);
+				},
+			},
+		]);
+	};
+
 	return (
 		<View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
 			<Modal
@@ -302,6 +374,82 @@ export default function ProfileScreen() {
 								<Text className="text-base font-semibold text-white">{t("save")}</Text>
 							</TouchableOpacity>
 						</View>
+					</View>
+				</KeyboardAvoidingView>
+			</Modal>
+
+			<Modal
+				visible={authModalVisible}
+				animationType="slide"
+				transparent
+				onRequestClose={() => setAuthModalVisible(false)}
+			>
+				<KeyboardAvoidingView
+					className="flex-1 justify-end bg-black/40"
+					behavior={Platform.OS === "ios" ? "padding" : "height"}
+				>
+					<View className="rounded-t-3xl bg-white px-6 pb-10 pt-6">
+						<Text className="mb-5 text-center text-lg font-bold text-gray-900">
+							{authMode === "login" ? t("login") : t("register")}
+						</Text>
+
+						<Text className="mb-1.5 text-[13px] font-semibold text-gray-500">
+							{t("email")}
+						</Text>
+						<TextInput
+							className="mb-4 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-3 text-base text-gray-900"
+							value={authEmail}
+							onChangeText={setAuthEmail}
+							placeholder={t("yourEmail")}
+							placeholderTextColor="#9ca3af"
+							keyboardType="email-address"
+							autoCapitalize="none"
+							autoCorrect={false}
+						/>
+
+						<Text className="mb-1.5 text-[13px] font-semibold text-gray-500">
+							{t("password")}
+						</Text>
+						<TextInput
+							className="mb-6 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-3 text-base text-gray-900"
+							value={authPassword}
+							onChangeText={setAuthPassword}
+							placeholder="••••••••"
+							placeholderTextColor="#9ca3af"
+							secureTextEntry
+						/>
+
+						<TouchableOpacity
+							className="mb-4 items-center rounded-xl bg-blue-500 py-3.5"
+							onPress={() => void handleAuth()}
+							disabled={isAuthenticating}
+						>
+							{isAuthenticating ? (
+								<ActivityIndicator color="#fff" />
+							) : (
+								<Text className="text-base font-semibold text-white">
+									{authMode === "login" ? t("login") : t("register")}
+								</Text>
+							)}
+						</TouchableOpacity>
+
+						<TouchableOpacity
+							className="items-center py-2"
+							onPress={() => setAuthMode(authMode === "login" ? "register" : "login")}
+						>
+							<Text className="text-blue-500 font-medium">
+								{authMode === "login" ? t("noAccountRegister") : t("hasAccountLogin")}
+							</Text>
+						</TouchableOpacity>
+
+						<TouchableOpacity
+							className="mt-4 items-center rounded-xl border border-gray-200 py-3.5"
+							onPress={() => setAuthModalVisible(false)}
+						>
+							<Text className="text-base font-semibold text-gray-500">
+								{t("cancel")}
+							</Text>
+						</TouchableOpacity>
 					</View>
 				</KeyboardAvoidingView>
 			</Modal>
@@ -563,6 +711,87 @@ export default function ProfileScreen() {
 					>
 						<Text className="font-bold text-gray-700">{t("editProfile")}</Text>
 					</TouchableOpacity>
+				</View>
+
+				<View className="mb-2 mt-8 px-6">
+					<Text className="text-[12px] font-bold uppercase tracking-[2px] text-gray-400">
+						{t("syncCloud")}
+					</Text>
+				</View>
+				<View className="border-y border-gray-100 bg-white px-5 py-4">
+					<View className="flex-row items-center gap-3 mb-4">
+						<View className="h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
+							<Ionicons name="cloud-upload-outline" size={20} color="#3b82f6" />
+						</View>
+						<View className="flex-1">
+							<Text className="text-base font-semibold text-gray-800">
+								{userLoggedIn ? t("cloudSyncActive") : t("notLoggedIn")}
+							</Text>
+							<Text className="text-xs text-gray-500">
+								{userLoggedIn ? t("syncDescription") : t("loginToSync")}
+							</Text>
+							{userLoggedIn ? (
+								<Text className="mt-1 text-xs text-gray-400">
+									{t("lastSync")}:{" "}
+									{lastSyncedAt
+										? new Date(lastSyncedAt).toLocaleString(locale)
+										: "—"}
+								</Text>
+							) : null}
+							{error ? (
+								<Text className="mt-1 text-xs font-medium text-red-600">
+									{error.message}
+								</Text>
+							) : null}
+						</View>
+					</View>
+
+					{userLoggedIn ? (
+						<View className="flex-row gap-3">
+							<TouchableOpacity
+								className="flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-blue-500 py-3"
+								onPress={() => void handleManualSync()}
+								disabled={isSyncing}
+							>
+								{isSyncing ? (
+									<ActivityIndicator size="small" color="#fff" />
+								) : (
+									<>
+										<Ionicons name="sync" size={18} color="#fff" />
+										<Text className="font-bold text-white">{t("syncNow")}</Text>
+									</>
+								)}
+							</TouchableOpacity>
+							<TouchableOpacity
+								className="flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-gray-100 py-3"
+								onPress={() => void handleLogout()}
+							>
+								<Ionicons name="log-out-outline" size={18} color="#4b5563" />
+								<Text className="font-bold text-gray-700">{t("logout")}</Text>
+							</TouchableOpacity>
+						</View>
+					) : (
+						<View className="flex-row gap-3">
+							<TouchableOpacity
+								className="flex-1 items-center rounded-xl bg-blue-500 py-3"
+								onPress={() => {
+									setAuthMode("login");
+									setAuthModalVisible(true);
+								}}
+							>
+								<Text className="font-bold text-white">{t("login")}</Text>
+							</TouchableOpacity>
+							<TouchableOpacity
+								className="flex-1 items-center rounded-xl border border-blue-500 py-3"
+								onPress={() => {
+									setAuthMode("register");
+									setAuthModalVisible(true);
+								}}
+							>
+								<Text className="font-bold text-blue-500">{t("register")}</Text>
+							</TouchableOpacity>
+						</View>
+					)}
 				</View>
 
 				<View className="mb-2 mt-8 px-6">

@@ -3,11 +3,10 @@ import {
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
-import PendingRecurringPrompt from "@/components/pending-recurring-prompt";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as QuickActions from "expo-quick-actions";
 import { useQuickActionRouting } from "expo-quick-actions/router";
-import { Stack, useRouter } from "expo-router";
+import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, AppState, Platform } from "react-native";
@@ -18,11 +17,9 @@ import { seedCategories } from "@/database";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useI18n } from "@/hooks/useI18n";
 import { savePrefs, usePrefs } from "@/hooks/usePrefs";
+import { useSync } from "@/hooks/useSync";
+import { isLoggedIn } from "@/services/auth";
 import { evaluateBudgetAlerts } from "@/services/budget-alerts";
-import {
-  getPendingRecurringCount,
-  syncRecurringExpenses,
-} from "@/services/expenses";
 import { Text, TouchableOpacity, View } from "@/tw";
 import { exportExpensesCSV } from "@/utils/export-csv";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -35,20 +32,15 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
   const prefs = usePrefs();
   const { t } = useI18n();
-  const router = useRouter();
+  const { syncNow } = useSync();
   const [isLocked, setIsLocked] = useState(
     () => Platform.OS !== "web" && prefs.appLockEnabled,
   );
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [lockMessage, setLockMessage] = useState<string | null>(null);
-  const [isPendingPromptVisible, setIsPendingPromptVisible] = useState(false);
-  const [pendingPromptCount, setPendingPromptCount] = useState(0);
-  const [pendingPromptQueued, setPendingPromptQueued] = useState(false);
   const appStateRef = useRef(AppState.currentState);
   const isAuthenticatingRef = useRef(false);
   const hasCheckedInitialLockRef = useRef(false);
-  const hasShownPendingPromptThisCycleRef = useRef(false);
-  const isSyncingRecurringRef = useRef(false);
   const isLockedRef = useRef(isLocked);
   const prefsRef = useRef(prefs);
 
@@ -166,76 +158,28 @@ export default function RootLayout() {
     }
   }, [disableAppLock, t]);
 
-  useEffect(() => {
-    seedCategories().catch(console.error);
-  }, []);
-
-  const syncRecurringState = useCallback(async () => {
-    if (isSyncingRecurringRef.current) {
-      return;
+  const syncAppState = useCallback(async () => {
+    try {
+      await seedCategories();
+    } catch (error) {
+      console.error("Failed to seed local categories", error);
     }
 
-    isSyncingRecurringRef.current = true;
+    const logged = await isLoggedIn();
+    if (logged) {
+      try {
+        await syncNow();
+      } catch (error) {
+        console.error("Failed to sync app state", error);
+      }
+    }
 
     try {
-      const { pendingCount } = await syncRecurringExpenses();
-      setPendingPromptCount(pendingCount);
-
-      try {
-        await evaluateBudgetAlerts();
-      } catch (error) {
-        console.error("Failed to evaluate budget alerts", error);
-      }
-
-      if (pendingCount === 0) {
-        setPendingPromptQueued(false);
-        setIsPendingPromptVisible(false);
-        return;
-      }
-
-      if (isLockedRef.current) {
-        setPendingPromptQueued(true);
-        return;
-      }
-
-      if (!hasShownPendingPromptThisCycleRef.current) {
-        hasShownPendingPromptThisCycleRef.current = true;
-        setIsPendingPromptVisible(true);
-      }
+      await evaluateBudgetAlerts();
     } catch (error) {
-      console.error("Failed to sync recurring expenses", error);
-    } finally {
-      isSyncingRecurringRef.current = false;
+      console.error("Failed to evaluate budget alerts", error);
     }
-  }, []);
-
-  const queueOrShowPendingPrompt = useCallback(
-    async (forceRefreshCount = false) => {
-      const nextCount = forceRefreshCount
-        ? await getPendingRecurringCount()
-        : pendingPromptCount;
-
-      setPendingPromptCount(nextCount);
-
-      if (nextCount === 0) {
-        setPendingPromptQueued(false);
-        setIsPendingPromptVisible(false);
-        return;
-      }
-
-      if (isLockedRef.current) {
-        setPendingPromptQueued(true);
-        return;
-      }
-
-      if (!hasShownPendingPromptThisCycleRef.current) {
-        hasShownPendingPromptThisCycleRef.current = true;
-        setPendingPromptQueued(false);
-        setIsPendingPromptVisible(true);
-      }
-    },
-    [pendingPromptCount],
-  );
+  }, [syncNow]);
 
   useEffect(() => {
     if (Platform.OS === "web") {
@@ -264,14 +208,8 @@ export default function RootLayout() {
   }, [prefs.appLockEnabled, authenticateToUnlock, disableAppLock]);
 
   useEffect(() => {
-    void syncRecurringState();
-  }, [syncRecurringState]);
-
-  useEffect(() => {
-    if (!isLocked && pendingPromptQueued) {
-      void queueOrShowPendingPrompt(true);
-    }
-  }, [isLocked, pendingPromptQueued, queueOrShowPendingPrompt]);
+    void syncAppState();
+  }, [syncAppState]);
 
   useEffect(() => {
     if (Platform.OS === "web") return;
@@ -279,11 +217,6 @@ export default function RootLayout() {
     const subscription = AppState.addEventListener("change", (nextState) => {
       const prevState = appStateRef.current;
       appStateRef.current = nextState;
-
-      if (nextState === "background" || nextState === "inactive") {
-        hasShownPendingPromptThisCycleRef.current = false;
-        setIsPendingPromptVisible(false);
-      }
 
       const becameActive =
         (prevState === "background" || prevState === "inactive") &&
@@ -296,21 +229,12 @@ export default function RootLayout() {
       }
 
       if (becameActive) {
-        void syncRecurringState();
+        void syncAppState();
       }
     });
 
     return () => subscription.remove();
-  }, [authenticateToUnlock, syncRecurringState]);
-
-  const handlePendingPromptLater = useCallback(() => {
-    setIsPendingPromptVisible(false);
-  }, []);
-
-  const handlePendingPromptReview = useCallback(() => {
-    setIsPendingPromptVisible(false);
-    router.push("/(tabs)/budget");
-  }, [router]);
+  }, [authenticateToUnlock, syncAppState]);
 
   return (
     <SafeAreaProvider>
@@ -364,12 +288,6 @@ export default function RootLayout() {
               </View>
             </View>
           )}
-          <PendingRecurringPrompt
-            visible={isPendingPromptVisible}
-            pendingCount={pendingPromptCount}
-            onLater={handlePendingPromptLater}
-            onReview={handlePendingPromptReview}
-          />
         </View>
         <StatusBar style="auto" />
       </ThemeProvider>

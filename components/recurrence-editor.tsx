@@ -31,6 +31,7 @@ export default function RecurrenceEditor({
     day: t("recurrenceDay"),
     week: t("recurrenceWeek"),
     month: t("recurrenceMonth"),
+    year: t("recurrenceYear"),
   };
 
   return (

@@ -3,6 +3,7 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   verify:
@@ -13,4 +14,20 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bun run lint
+      - run: bun run typecheck
       - run: bun run test
+
+  remote-smoke:
+    runs-on: ubuntu-latest
+    needs: verify
+    if: ${{ vars.EXPENSE_TRACKER_SMOKE_API_URL != '' }}
+    timeout-minutes: 10
+    env:
+      EXPENSE_TRACKER_SMOKE_API_URL: ${{ vars.EXPENSE_TRACKER_SMOKE_API_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run test:smoke

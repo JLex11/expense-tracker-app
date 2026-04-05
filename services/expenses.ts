@@ -1,5 +1,5 @@
 import { Q } from "@nozbe/watermelondb";
-import { database } from "@/database";
+import { createUuid, database } from "@/database";
 import type Expense from "@/database/models/Expense";
 import type RecurringExpenseRule from "@/database/models/RecurringExpenseRule";
 import type {
@@ -13,7 +13,6 @@ import type {
 import {
   addRecurringInterval,
   getNextOccurrenceOnOrAfter,
-  startOfLocalDay,
 } from "@/utils/recurrence";
 
 const CONFIRMED_STATUS: ExpenseStatus = "confirmed";
@@ -48,6 +47,7 @@ export async function createExpenseWithOptionalRecurrence(
     const createdExpense = await database
       .get<Expense>("expenses")
       .create((expense) => {
+        expense._raw.id = createUuid();
         assignExpenseFields(expense, {
           amount: input.amount,
           categoryId: input.categoryId,
@@ -213,65 +213,10 @@ export async function toggleRecurringRule(ruleId: string, isActive: boolean) {
 }
 
 export async function syncRecurringExpenses(now = Date.now()) {
-  const todayStart = startOfLocalDay(now);
-  let createdCount = 0;
-
-  await database.write(async () => {
-    const rules = await database
-      .get<RecurringExpenseRule>("recurring_expense_rules")
-      .query(Q.where("is_active", true))
-      .fetch();
-
-    for (const rule of rules) {
-      if (startOfLocalDay(rule.nextDueAt) > todayStart) {
-        continue;
-      }
-
-      const recurrence = {
-        intervalValue: rule.intervalValue,
-        intervalUnit: rule.intervalUnit,
-      } satisfies RecurringRuleInput;
-      const existingExpenses = await database
-        .get<Expense>("expenses")
-        .query(Q.where("recurring_rule_id", rule.id))
-        .fetch();
-      const existingDates = new Set(
-        existingExpenses.map((expense) => expense.date.toString()),
-      );
-
-      let nextDueAt = rule.nextDueAt;
-
-      while (startOfLocalDay(nextDueAt) <= todayStart) {
-        if (!existingDates.has(nextDueAt.toString())) {
-          await database.get<Expense>("expenses").create((expense) => {
-            assignExpenseFields(expense, {
-              amount: rule.amount,
-              categoryId: rule.categoryId,
-              date: nextDueAt,
-              note: rule.note,
-              paymentMethod: rule.paymentMethod as PaymentMethod,
-              status: PENDING_STATUS,
-              origin: RECURRING_ORIGIN,
-              recurringRuleId: rule.id,
-              resolvedAt: null,
-            });
-          });
-          existingDates.add(nextDueAt.toString());
-          createdCount += 1;
-        }
-
-        nextDueAt = addRecurringInterval(nextDueAt, recurrence, rule.startDate);
-      }
-
-      await rule.update((draft) => {
-        draft.nextDueAt = nextDueAt;
-      });
-    }
-  });
-
-  const pendingCount = await getPendingRecurringCount();
-
-  return { createdCount, pendingCount };
+  // Recurring expense generation is server-side (cron + sync).
+  // Keep this method for compatibility with existing callsites.
+  void now;
+  return { createdCount: 0, pendingCount: 0 };
 }
 
 export async function confirmPendingExpense(expenseId: string) {
@@ -317,6 +262,7 @@ async function createRecurringRuleFromSeed(
   return database
     .get<RecurringExpenseRule>("recurring_expense_rules")
     .create((rule) => {
+      rule._raw.id = createUuid();
       rule.amount = input.amount;
       rule.categoryId = input.categoryId;
       rule.paymentMethod = input.paymentMethod;

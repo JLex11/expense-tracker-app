@@ -4,9 +4,7 @@ import type Category from "@/database/models/Category";
 import type Expense from "@/database/models/Expense";
 import type RecurringExpenseRule from "@/database/models/RecurringExpenseRule";
 import {
-  confirmPendingExpense,
   convertExpenseToRecurring,
-  skipPendingExpense,
   toggleRecurringRule,
   updateRecurringRule,
 } from "@/services/expenses";
@@ -71,7 +69,6 @@ export default function MovementDetailScreen() {
     useState<RecurringExpenseRule | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingRule, setIsSavingRule] = useState(false);
-  const [isResolvingPending, setIsResolvingPending] = useState(false);
   const [isEditingRecurrence, setIsEditingRecurrence] = useState(false);
   const [recurrenceIntervalValue, setRecurrenceIntervalValue] = useState("1");
   const [recurrenceUnit, setRecurrenceUnit] = useState<RecurrenceUnit>("month");
@@ -202,7 +199,7 @@ export default function MovementDetailScreen() {
   }, [recurrenceIntervalValue, recurrenceUnit, t]);
 
   const handleDelete = useCallback(() => {
-    if (!expense || expense.status === "pending") return;
+    if (!expense) return;
 
     Alert.alert(t("deleteMovementTitle"), t("actionCannotBeUndone"), [
       { text: t("cancel"), style: "cancel" },
@@ -212,7 +209,7 @@ export default function MovementDetailScreen() {
         onPress: async () => {
           try {
             await database.write(async () => {
-              await expense.destroyPermanently();
+              await expense.markAsDeleted();
             });
             router.back();
           } catch (error) {
@@ -223,36 +220,6 @@ export default function MovementDetailScreen() {
       },
     ]);
   }, [expense, router, t]);
-
-  const handleConfirmPending = useCallback(async () => {
-    if (!expense) return;
-
-    setIsResolvingPending(true);
-    try {
-      await confirmPendingExpense(expense.id);
-      await loadMovement();
-    } catch (error) {
-      console.error(error);
-      Alert.alert(t("error"), t("couldNotConfirmExpense"));
-    } finally {
-      setIsResolvingPending(false);
-    }
-  }, [expense, loadMovement, t]);
-
-  const handleSkipPending = useCallback(async () => {
-    if (!expense) return;
-
-    setIsResolvingPending(true);
-    try {
-      await skipPendingExpense(expense.id);
-      await loadMovement();
-    } catch (error) {
-      console.error(error);
-      Alert.alert(t("error"), t("couldNotSkipExpense"));
-    } finally {
-      setIsResolvingPending(false);
-    }
-  }, [expense, loadMovement, t]);
 
   const handleSaveRecurring = useCallback(async () => {
     if (!expense) return;
@@ -393,35 +360,6 @@ export default function MovementDetailScreen() {
             : t("manualExpense")}
         </Text>
       </View>
-
-      {expense.status === "pending" ? (
-        <View className="mb-4 rounded-3xl border border-amber-200 bg-amber-50 p-5">
-          <Text className="text-lg font-bold text-amber-900">
-            {t("didYouMakeScheduledExpense")}
-          </Text>
-          <Text className="mt-2 text-sm leading-6 text-amber-800">
-            {t("didYouMakeScheduledExpenseBody")}
-          </Text>
-          <View className="mt-5 flex-row gap-3">
-            <TouchableOpacity
-              onPress={() => void handleConfirmPending()}
-              disabled={isResolvingPending}
-              className="flex-1 items-center rounded-2xl bg-primary py-3.5"
-            >
-              <Text className="font-bold text-white">
-                {isResolvingPending ? `${t("save")}...` : t("yesSpentIt")}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => void handleSkipPending()}
-              disabled={isResolvingPending}
-              className="flex-1 items-center rounded-2xl border border-amber-300 bg-white py-3.5"
-            >
-              <Text className="font-semibold text-amber-800">{t("no")}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      ) : null}
 
       <View className="mb-4 rounded-3xl border border-gray-100 bg-gray-50 p-5">
         <Text className="mb-4 text-[12px] font-bold uppercase tracking-[2px] text-gray-400">
@@ -643,24 +581,22 @@ export default function MovementDetailScreen() {
         </Text>
       </View>
 
-      {expense.status !== "pending" ? (
-        <View className="gap-3">
-          <TouchableOpacity
-            onPress={handleEdit}
-            className="items-center rounded-2xl border border-blue-200 bg-blue-50 py-4"
-          >
-            <Text className="font-semibold text-blue-600">{t("edit")}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={handleDelete}
-            className="items-center rounded-2xl border border-red-200 bg-red-50 py-4"
-          >
-            <Text className="font-semibold text-red-600">
-              {t("deleteMovement")}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      ) : null}
+      <View className="gap-3">
+        <TouchableOpacity
+          onPress={handleEdit}
+          className="items-center rounded-2xl border border-blue-200 bg-blue-50 py-4"
+        >
+          <Text className="font-semibold text-blue-600">{t("edit")}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={handleDelete}
+          className="items-center rounded-2xl border border-red-200 bg-red-50 py-4"
+        >
+          <Text className="font-semibold text-red-600">
+            {t("deleteMovement")}
+          </Text>
+        </TouchableOpacity>
+      </View>
     </ScrollView>
   );
 }

@@ -35,6 +35,21 @@ describe("recurrence utils", () => {
 		expect(date.getMinutes()).toBe(30);
 	});
 
+	it("supports yearly recurrence from synced API rules", () => {
+		const leapDay = new Date(2024, 1, 29, 7, 15).getTime();
+		const next = addRecurringInterval(leapDay, {
+			intervalValue: 1,
+			intervalUnit: "year",
+		});
+
+		const date = new Date(next);
+		expect(date.getFullYear()).toBe(2025);
+		expect(date.getMonth()).toBe(1);
+		expect(date.getDate()).toBe(28);
+		expect(date.getHours()).toBe(7);
+		expect(date.getMinutes()).toBe(15);
+	});
+
 	it("catches up recurring rules to the next due date", () => {
 		const start = new Date(2025, 0, 1, 8, 0).getTime();
 		const min = new Date(2025, 0, 22, 12, 0).getTime();

@@ -5,7 +5,7 @@ import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/hooks/usePrefs";
 import { createExpenseWithOptionalRecurrence } from "@/services/expenses";
 import { Text, TouchableOpacity, View } from "@/tw";
-import type { RecurrenceUnit, RecurringRuleInput } from "@/types/expenses";
+import type { PaymentMethod, RecurrenceUnit, RecurringRuleInput } from "@/types/expenses";
 import { getCurrencySymbol } from "@/utils/currency";
 import { parseRecurrenceInterval } from "@/utils/recurrence";
 import { Ionicons } from "@expo/vector-icons";
@@ -49,7 +49,7 @@ export default function QuickAddDialog() {
 
 	const [step, setStep] = useState(0);
 	const [amount, setAmount] = useState("");
-	const [paymentMethod, setPaymentMethod] = useState("card");
+	const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
 	const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 	const [date, setDate] = useState(new Date());
 	const [showDatePicker, setShowDatePicker] = useState(false);

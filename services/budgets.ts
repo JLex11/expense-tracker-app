@@ -1,4 +1,4 @@
-import { database } from "@/database";
+import { createUuid, database } from "@/database";
 import type Budget from "@/database/models/Budget";
 import { Q } from "@nozbe/watermelondb";
 
@@ -28,6 +28,7 @@ export async function upsertBudget(input: {
 		}
 
 		const created = await collection.create((draft) => {
+			draft._raw.id = createUuid();
 			draft.categoryId = input.categoryId;
 			draft.monthKey = input.monthKey;
 			draft.limitAmount = input.limitAmount;
@@ -42,6 +43,6 @@ export async function upsertBudget(input: {
 export async function deleteBudget(budgetId: string) {
 	await database.write(async () => {
 		const budget = await database.get<Budget>("budgets").find(budgetId);
-		await budget.destroyPermanently();
+		await budget.markAsDeleted();
 	});
 }

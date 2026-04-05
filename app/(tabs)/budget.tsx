@@ -4,11 +4,8 @@ import { useBudgets } from "@/hooks/useBudgets";
 import { useCategories } from "@/hooks/useCategories";
 import { useExpenses } from "@/hooks/useExpenses";
 import { useI18n } from "@/hooks/useI18n";
-import { usePendingRecurringExpenses } from "@/hooks/usePendingRecurringExpenses";
 import { usePrefs } from "@/hooks/usePrefs";
-import { useRecurringExpenseRules } from "@/hooks/useRecurringExpenseRules";
 import { deleteBudget, upsertBudget } from "@/services/budgets";
-import { confirmPendingExpense, skipPendingExpense } from "@/services/expenses";
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from "@/tw";
 import { formatCurrency, getCurrencySymbol } from "@/utils/currency";
 import {
@@ -17,7 +14,6 @@ import {
   getMonthKey,
   shiftMonthKey,
 } from "@/utils/months";
-import { formatRecurrenceSummary } from "@/utils/recurrence";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
@@ -69,14 +65,9 @@ export default function BudgetScreen() {
   const { t, language, locale } = useI18n();
   const expenses = useExpenses();
   const categories = useCategories();
-  const pendingExpenses = usePendingRecurringExpenses();
-  const recurringRules = useRecurringExpenseRules();
 
   const [filter, setFilter] = useState<FilterType>("month");
   const [searchQuery, setSearchQuery] = useState("");
-  const [resolvingExpenseId, setResolvingExpenseId] = useState<string | null>(
-    null,
-  );
   const [selectedMonthKey, setSelectedMonthKey] = useState(() =>
     getMonthKey(Date.now()),
   );
@@ -104,10 +95,6 @@ export default function BudgetScreen() {
   const categoryMap = useMemo(
     () => new Map(categories.map((category) => [category.id, category])),
     [categories],
-  );
-  const recurringRuleMap = useMemo(
-    () => new Map(recurringRules.map((rule) => [rule.id, rule])),
-    [recurringRules],
   );
 
   const budgetSummary = useMemo(() => {
@@ -304,7 +291,7 @@ export default function BudgetScreen() {
               const expense = await database
                 .get<Expense>("expenses")
                 .find(expenseId);
-              await expense.destroyPermanently();
+              await expense.markAsDeleted();
             });
           } catch (error) {
             console.error(error);
@@ -313,25 +300,6 @@ export default function BudgetScreen() {
         },
       },
     ]);
-  };
-
-  const handleResolvePending = async (
-    expenseId: string,
-    action: "confirm" | "skip",
-  ) => {
-    setResolvingExpenseId(expenseId);
-    try {
-      if (action === "confirm") {
-        await confirmPendingExpense(expenseId);
-      } else {
-        await skipPendingExpense(expenseId);
-      }
-    } catch (error) {
-      console.error(error);
-      Alert.alert(t("error"), t("couldNotUpdateRule"));
-    } finally {
-      setResolvingExpenseId(null);
-    }
   };
 
   const totalRemaining = budgetSummary.totalBudgeted - budgetSummary.totalSpent;
@@ -742,122 +710,6 @@ export default function BudgetScreen() {
               }
             }}
           />
-        ) : null}
-
-        {pendingExpenses.length > 0 ? (
-          <View className="mt-6 px-5">
-            <View className="mb-4 flex-row items-end justify-between">
-              <View>
-                <Text className="text-[12px] font-bold uppercase tracking-[2px] text-amber-500">
-                  {t("pendingRecurring")}
-                </Text>
-                <Text className="mt-1 text-sm text-gray-500">
-                  {t("pendingRecurringBody")}
-                </Text>
-              </View>
-              <View className="rounded-full bg-amber-100 px-3 py-1">
-                <Text className="text-xs font-bold text-amber-700">
-                  {pendingExpenses.length}
-                </Text>
-              </View>
-            </View>
-
-            <View className="gap-3">
-              {pendingExpenses.map((expense) => {
-                const category = categoryMap.get(expense.categoryId);
-                const recurringRule = expense.recurringRuleId
-                  ? recurringRuleMap.get(expense.recurringRuleId)
-                  : null;
-                const recurrenceLabel = recurringRule
-                  ? formatRecurrenceSummary(
-                      recurringRule.intervalValue,
-                      recurringRule.intervalUnit,
-                      language,
-                    )
-                  : t("recurringExpense");
-                const isResolving = resolvingExpenseId === expense.id;
-
-                return (
-                  <View
-                    key={expense.id}
-                    className="rounded-3xl border border-amber-200 bg-amber-50 p-4"
-                  >
-                    <TouchableOpacity
-                      onPress={() =>
-                        router.push({
-                          pathname: "/movement/[id]",
-                          params: { id: expense.id },
-                        })
-                      }
-                      activeOpacity={0.85}
-                    >
-                      <View className="flex-row items-start gap-3">
-                        <View className="mt-0.5 h-12 w-12 items-center justify-center rounded-2xl bg-white">
-                          <Ionicons
-                            name={
-                              (category?.icon ||
-                                "help-circle") as keyof typeof Ionicons.glyphMap
-                            }
-                            size={24}
-                            color="#f59e0b"
-                          />
-                        </View>
-                        <View className="flex-1">
-                          <View className="flex-row items-start justify-between gap-3">
-                            <View className="flex-1">
-                              <Text className="text-base font-bold text-gray-900">
-                                {category?.name || t("unknown")}
-                              </Text>
-                              <Text className="mt-1 text-sm font-medium text-amber-700">
-                                {recurrenceLabel}
-                              </Text>
-                            </View>
-                            <Text className="text-lg font-bold text-gray-900">
-                              {formatCurrency(-expense.amount, prefs.currency)}
-                            </Text>
-                          </View>
-                          <Text className="mt-3 text-sm text-gray-600">
-                            {t("plannedFor")}{" "}
-                            {new Date(expense.date).toLocaleDateString(locale)}
-                          </Text>
-                          <Text className="mt-1 text-sm text-gray-500">
-                            {expense.note?.trim()
-                              ? expense.note
-                              : t("noRecurringNote")}
-                          </Text>
-                        </View>
-                      </View>
-                    </TouchableOpacity>
-
-                    <View className="mt-4 flex-row gap-3">
-                      <TouchableOpacity
-                        onPress={() =>
-                          void handleResolvePending(expense.id, "confirm")
-                        }
-                        disabled={isResolving}
-                        className="flex-1 items-center rounded-2xl bg-primary py-3"
-                      >
-                        <Text className="font-bold text-white">
-                          {isResolving ? t("save") + "..." : t("yesSpentIt")}
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() =>
-                          void handleResolvePending(expense.id, "skip")
-                        }
-                        disabled={isResolving}
-                        className="flex-1 items-center rounded-2xl border border-amber-300 bg-white py-3"
-                      >
-                        <Text className="font-semibold text-amber-800">
-                          {t("no")}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
         ) : null}
 
         {Object.entries(groupedExpenses).map(([groupName, items]) => (

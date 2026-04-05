@@ -76,13 +76,23 @@ bun run ios
 - `bun run ios` - run iOS build
 - `bun run web` - run web target
 - `bun run lint` - run Expo lint rules
+- `bun run typecheck` - run TypeScript checks
+- `bun run test` - run unit tests
+- `bun run test:api-smoke` - run end-to-end auth + sync smoke against an API URL
+- `bun run test:api-sync-conflicts` - verify conflict/delete sync behavior against an API URL
+- `bun run test:smoke` - run both API smoke suites
+- `bun run verify` - run lint, typecheck, and local unit tests
 - `bun run reset-project` - reset starter scaffold
+
+Set `EXPENSE_TRACKER_SMOKE_API_URL` or pass the API URL as the first argument for the smoke commands.
 
 ## Notes
 
 - This app uses native modules (for example WatermelonDB, Local Authentication, Quick Actions), so use native/dev builds (`expo run:*`) instead of relying only on Expo Go.
 - On first launch, default categories are seeded automatically.
 - Recurring rules generate pending expenses up to the current day; users can confirm or skip them.
+- Smoke tests create temporary users and sync records on the target backend.
+- GitHub Actions runs `lint`, `typecheck`, and unit tests on every push/PR. Remote smoke tests are opt-in through the repository variable `EXPENSE_TRACKER_SMOKE_API_URL`.
 
 ## Data Model (high level)
 

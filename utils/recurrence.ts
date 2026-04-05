@@ -1,18 +1,25 @@
 import type { AppLanguage } from "@/hooks/usePrefs";
 import type { RecurrenceUnit, RecurringRuleInput } from "@/types/expenses";
 
-export const RECURRENCE_UNITS: RecurrenceUnit[] = ["day", "week", "month"];
+export const RECURRENCE_UNITS: RecurrenceUnit[] = [
+  "day",
+  "week",
+  "month",
+  "year",
+];
 
 const DAY_LABELS: Record<AppLanguage, Record<RecurrenceUnit, [string, string]>> = {
 	es: {
 		day: ["día", "días"],
 		week: ["semana", "semanas"],
 		month: ["mes", "meses"],
+		year: ["año", "años"],
 	},
 	en: {
 		day: ["day", "days"],
 		week: ["week", "weeks"],
 		month: ["month", "months"],
+		year: ["year", "years"],
 	},
 };
 
@@ -57,6 +64,14 @@ export function addRecurringInterval(
 		const next = new Date(currentTimestamp);
 		next.setDate(next.getDate() + recurrence.intervalValue * 7);
 		return next.getTime();
+	}
+
+	if (recurrence.intervalUnit === "year") {
+		return addMonthsPreservingAnchor(
+			currentTimestamp,
+			recurrence.intervalValue * 12,
+			anchorTimestamp,
+		);
 	}
 
 	return addMonthsPreservingAnchor(
