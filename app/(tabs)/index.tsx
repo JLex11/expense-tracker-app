@@ -1,11 +1,15 @@
 import InfoWidget from "@/components/info-widget";
+import InsightsSection from "@/components/insights-section";
+import { useBudgets } from "@/hooks/useBudgets";
 import { useCategories } from "@/hooks/useCategories";
 import { useExpenses } from "@/hooks/useExpenses";
+import { useHomeInsights } from "@/hooks/useHomeInsights";
 import { useI18n } from "@/hooks/useI18n";
 import { useNotifications } from "@/hooks/useNotifications";
 import { usePrefs } from "@/hooks/usePrefs";
 import { ScrollView, Text, TouchableOpacity, View } from "@/tw";
 import { formatCurrency } from "@/utils/currency";
+import { getMonthKey } from "@/utils/months";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useMemo } from "react";
@@ -27,6 +31,9 @@ export default function HomeScreen() {
   const expenses = useExpenses();
   const prefs = usePrefs();
   const categories = useCategories();
+  const currentMonthKey = useMemo(() => getMonthKey(new Date()), []);
+  const budgets = useBudgets(currentMonthKey);
+  const homeInsights = useHomeInsights(expenses, categories, budgets, prefs.weekStart);
   const { t, language } = useI18n();
   const { unreadCount } = useNotifications();
 
@@ -131,7 +138,13 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      <InfoWidget categories={categories} />
+      <InfoWidget
+        todayTotal={homeInsights.todayTotal}
+        weekTotal={homeInsights.weekTotal}
+        prevWeekTotal={homeInsights.prevWeekTotal}
+      />
+
+      <InsightsSection insights={homeInsights} />
 
       <View className="mb-8 px-5">
         <View className="rounded-3xl border border-gray-100 bg-white p-5">

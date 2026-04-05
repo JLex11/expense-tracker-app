@@ -275,6 +275,16 @@ const translations: Record<AppLanguage, Record<string, TranslationValue>> = {
     hasAccountLogin: "¿Ya tienes cuenta? Inicia sesión",
     cloudSyncActive: "Sincronización activa",
     loginToSync: "Inicia sesión para respaldar tus datos",
+    insightWeekMore: ({ pct }) => `Gastaste ${pct}% más que la semana pasada`,
+    insightWeekLess: ({ pct }) => `Gastaste ${pct}% menos que la semana pasada`,
+    insightWeekSame: "Gastaste igual que la semana pasada",
+    insightTopCategory: ({ name, pct }) => `Top del mes: ${name} (${pct}%)`,
+    insightBudgetUsage: ({ pct }) => `Presupuesto: ${pct}% utilizado`,
+    insightBudgetOver: ({ pct }) => `Presupuesto excedido: ${pct}%`,
+    insightTodayVsYesterday: ({ today, yesterday }) =>
+      `Hoy ${today} · Ayer ${yesterday}`,
+    insightLastExpense: ({ amount, category, time }) =>
+      `Último: ${amount} en ${category} · ${time}`,
   },
   en: {
     home: "Home",
@@ -541,6 +551,16 @@ const translations: Record<AppLanguage, Record<string, TranslationValue>> = {
     hasAccountLogin: "Already have an account? Login",
     cloudSyncActive: "Sync active",
     loginToSync: "Login to backup your data",
+    insightWeekMore: ({ pct }) => `You spent ${pct}% more than last week`,
+    insightWeekLess: ({ pct }) => `You spent ${pct}% less than last week`,
+    insightWeekSame: "You spent the same as last week",
+    insightTopCategory: ({ name, pct }) => `Top this month: ${name} (${pct}%)`,
+    insightBudgetUsage: ({ pct }) => `Budget: ${pct}% used`,
+    insightBudgetOver: ({ pct }) => `Over budget: ${pct}%`,
+    insightTodayVsYesterday: ({ today, yesterday }) =>
+      `Today ${today} · Yesterday ${yesterday}`,
+    insightLastExpense: ({ amount, category, time }) =>
+      `Last: ${amount} on ${category} · ${time}`,
   },
 };
 
