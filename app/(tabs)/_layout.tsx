@@ -4,7 +4,6 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useI18n } from "@/hooks/useI18n";
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
-import { Easing } from "react-native";
 
 export default function TabLayout() {
 	const colorScheme = useColorScheme();
@@ -17,14 +16,7 @@ export default function TabLayout() {
 			screenOptions={{
 				tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
 				headerShown: false,
-				animation: "fade",
-				transitionSpec: {
-					animation: "timing",
-					config: {
-						duration: 170,
-						easing: Easing.inOut(Easing.ease),
-					},
-				},
+				animation: "none",
 				sceneStyle: {
 					backgroundColor: sceneBackgroundColor,
 				},

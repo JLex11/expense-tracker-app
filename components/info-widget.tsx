@@ -1,5 +1,5 @@
 import { useI18n } from "@/hooks/useI18n";
-import { usePrefs } from "@/hooks/usePrefs";
+import { usePrefsSelector } from "@/hooks/usePrefs";
 import { Text, TouchableOpacity, View } from "@/tw";
 import { formatCurrency } from "@/utils/currency";
 import { Ionicons } from "@expo/vector-icons";
@@ -19,7 +19,7 @@ export default function InfoWidget({
 	onPressToday,
 	onPressWeek,
 }: InfoWidgetProps) {
-	const prefs = usePrefs();
+	const currency = usePrefsSelector((prefs) => prefs.currency);
 	const { t } = useI18n();
 
 	const weekDiff = weekTotal - prevWeekTotal;
@@ -46,7 +46,7 @@ export default function InfoWidget({
 						</Text>
 					</View>
 					<Text className="text-2xl font-bold text-white">
-						{formatCurrency(todayTotal, prefs.currency)}
+						{formatCurrency(todayTotal, currency)}
 					</Text>
 				</TouchableOpacity>
 
@@ -68,7 +68,7 @@ export default function InfoWidget({
 						</Text>
 					</View>
 					<Text className="text-2xl font-bold text-gray-900">
-						{formatCurrency(weekTotal, prefs.currency)}
+						{formatCurrency(weekTotal, currency)}
 					</Text>
 					{prevWeekTotal > 0 && (
 						<View className="flex-row items-center mt-1">
@@ -99,7 +99,7 @@ export default function InfoWidget({
 									}`}
 								>
 									{t("infoVsPrevious", {
-										amount: formatCurrency(Math.abs(weekDiff), prefs.currency),
+										amount: formatCurrency(Math.abs(weekDiff), currency),
 									})}
 								</Text>
 						</View>

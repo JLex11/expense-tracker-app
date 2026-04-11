@@ -3,7 +3,7 @@ import { usePendingRecurringExpenses } from "@/hooks/usePendingRecurringExpenses
 import {
   type AppNotification,
   type NotificationType,
-  usePrefs,
+  usePrefsSelector,
 } from "@/hooks/usePrefs";
 
 export interface DerivedNotification {
@@ -44,11 +44,13 @@ function mapPersistedNotification(
 }
 
 export function useNotifications(): UseNotificationsResult {
-  const prefs = usePrefs();
+  const persistedNotifications = usePrefsSelector(
+    (prefs) => prefs.notifications,
+  );
   const pendingRecurringExpenses = usePendingRecurringExpenses();
 
   const notifications = useMemo<DerivedNotification[]>(() => {
-    const persisted = prefs.notifications.map(mapPersistedNotification);
+    const persisted = persistedNotifications.map(mapPersistedNotification);
 
     const pendingCount = pendingRecurringExpenses.length;
     const hasPendingRecurring = pendingCount > 0;
@@ -89,13 +91,13 @@ export function useNotifications(): UseNotificationsResult {
     return [...persisted, ...pendingRecurringNotification].sort(
       (a, b) => b.createdAt - a.createdAt,
     );
-  }, [prefs.notifications, pendingRecurringExpenses]);
+  }, [persistedNotifications, pendingRecurringExpenses]);
 
   const persistedUnreadCount = useMemo(
     () =>
-      prefs.notifications.filter((notification) => notification.readAt === null)
+      persistedNotifications.filter((notification) => notification.readAt === null)
         .length,
-    [prefs.notifications],
+    [persistedNotifications],
   );
 
   const derivedUnreadCount = useMemo(

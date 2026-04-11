@@ -2,13 +2,13 @@ import { useCategories } from "@/hooks/useCategories";
 import { useExpenses } from "@/hooks/useExpenses";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/hooks/usePrefs";
-import { ScrollView, Text, TouchableOpacity, View } from "@/tw";
+import { Text, TouchableOpacity, View } from "@/tw";
 import { formatCurrency } from "@/utils/currency";
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Platform } from "react-native";
+import { FlatList, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type FilterType = "week" | "month" | "custom";
@@ -137,72 +137,6 @@ export default function CategoriesReportScreen() {
 
 	return (
 		<View className="flex-1 bg-gray-50" style={{ paddingTop: insets.top }}>
-			<View className="border-b border-gray-100 bg-white px-5 pb-4 pt-4">
-				<View className="flex-row items-center justify-between">
-					<TouchableOpacity
-						className="h-10 w-10 items-center justify-center rounded-full bg-gray-100"
-						onPress={() => router.back()}
-					>
-						<Ionicons name="chevron-back" size={20} color="#374151" />
-					</TouchableOpacity>
-					<Text className="text-lg font-bold text-gray-900">
-						{t("topCategories")}
-					</Text>
-					<View className="h-10 w-10" />
-				</View>
-
-				<View className="mt-4 flex-row gap-2">
-					{filters.map((item) => {
-						const isActive = filter === item.key;
-						return (
-							<TouchableOpacity
-								key={item.key}
-								onPress={() => setFilter(item.key)}
-								className={`rounded-full px-4 py-2 ${
-									isActive ? "bg-blue-500" : "bg-gray-100"
-								}`}
-							>
-								<Text
-									className={`font-medium ${
-										isActive ? "text-white" : "text-gray-500"
-									}`}
-								>
-									{item.label}
-								</Text>
-							</TouchableOpacity>
-						);
-					})}
-				</View>
-
-				{filter === "custom" ? (
-					<View className="mt-3 flex-row gap-3">
-						<TouchableOpacity
-							className="flex-1 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3"
-							onPress={() => setShowStartPicker(true)}
-						>
-							<Text className="text-xs font-semibold uppercase tracking-[1px] text-gray-400">
-								{t("from")}
-							</Text>
-							<Text className="mt-1 font-semibold text-gray-800">
-								{customStartDate.toLocaleDateString(locale)}
-							</Text>
-						</TouchableOpacity>
-
-						<TouchableOpacity
-							className="flex-1 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3"
-							onPress={() => setShowEndPicker(true)}
-						>
-							<Text className="text-xs font-semibold uppercase tracking-[1px] text-gray-400">
-								{t("to")}
-							</Text>
-							<Text className="mt-1 font-semibold text-gray-800">
-								{customEndDate.toLocaleDateString(locale)}
-							</Text>
-						</TouchableOpacity>
-					</View>
-				) : null}
-			</View>
-
 			{showStartPicker ? (
 				<DateTimePicker
 					value={customStartDate}
@@ -234,73 +168,148 @@ export default function CategoriesReportScreen() {
 				/>
 			) : null}
 
-			<ScrollView contentContainerClassName="px-5 pb-24 pt-5">
-				<View className="mb-4 rounded-3xl bg-slate-900 p-5">
-					<Text className="text-xs font-semibold uppercase tracking-[1px] text-slate-300">
-						{t("total")}
-					</Text>
-					<Text className="mt-2 text-2xl font-bold text-white">
-						{formatCurrency(reportRows.grandTotal, prefs.currency)}
-					</Text>
-				</View>
-
-				{reportRows.rows.length === 0 ? (
-					<View
-						key="categories-empty"
-						className="mt-12 items-center rounded-3xl border border-dashed border-gray-200 bg-white px-6 py-10"
-					>
-						<View className="mb-4 h-14 w-14 items-center justify-center rounded-full bg-gray-100">
-							<Ionicons name="pie-chart-outline" size={26} color="#9ca3af" />
-						</View>
-						<Text className="text-center text-lg font-bold text-gray-900">
-							{t("noExpensesFound")}
-						</Text>
-						<Text className="mt-2 text-center text-gray-500">
-							{t("adjustFiltersHint")}
-						</Text>
-					</View>
-				) : (
-					<View key="categories-list" className="gap-3 will-change-variable">
-						{reportRows.rows.map((row) => (
-							<View
-								key={row.categoryId}
-								className="rounded-3xl border border-gray-100 bg-white p-4"
-							>
-								<View className="flex-row items-center justify-between">
-									<View className="flex-row items-center gap-3">
-										<View className="h-11 w-11 items-center justify-center rounded-2xl bg-orange-50">
-											<Ionicons
-												name={row.icon as keyof typeof Ionicons.glyphMap}
-												size={22}
-												color="#f59e0b"
-											/>
-										</View>
-										<View>
-											<Text className="font-bold text-gray-900">
-												{row.name}
-											</Text>
-											<Text className="text-xs text-gray-500">
-												{row.percentage.toFixed(1)}%
-											</Text>
-										</View>
-									</View>
-
-									<Text className="font-bold text-gray-900">
-										{formatCurrency(row.amount, prefs.currency)}
-									</Text>
-								</View>
-
-								<View className="mt-3 h-2 overflow-hidden rounded-full bg-gray-100">
-									<View
-										className="h-full rounded-full bg-orange-400"
-										style={{ width: `${Math.min(row.percentage, 100)}%` }}
-									/>
-								</View>
+			<FlatList
+				style={{ flex: 1 }}
+				data={reportRows.rows}
+				keyExtractor={(item) => item.categoryId}
+				contentContainerStyle={{ paddingTop: 20, paddingBottom: 96 }}
+				ItemSeparatorComponent={() => <View className="h-3" />}
+				initialNumToRender={8}
+				showsVerticalScrollIndicator={false}
+				ListHeaderComponent={
+					<View className="px-5">
+						<View className="border-b border-gray-100 bg-white pb-4 pt-4">
+							<View className="flex-row items-center justify-between">
+								<TouchableOpacity
+									className="h-10 w-10 items-center justify-center rounded-full bg-gray-100"
+									onPress={() => router.back()}
+								>
+									<Ionicons name="chevron-back" size={20} color="#374151" />
+								</TouchableOpacity>
+								<Text className="text-lg font-bold text-gray-900">
+									{t("topCategories")}
+								</Text>
+								<View className="h-10 w-10" />
 							</View>
-						))}
+
+							<View className="mt-4 flex-row gap-2">
+								{filters.map((item) => {
+									const isActive = filter === item.key;
+									return (
+										<TouchableOpacity
+											key={item.key}
+											onPress={() => setFilter(item.key)}
+											className={`rounded-full px-4 py-2 ${
+												isActive ? "bg-blue-500" : "bg-gray-100"
+											}`}
+										>
+											<Text
+												className={`font-medium ${
+													isActive ? "text-white" : "text-gray-500"
+												}`}
+											>
+												{item.label}
+											</Text>
+										</TouchableOpacity>
+									);
+								})}
+							</View>
+
+							{filter === "custom" ? (
+								<View className="mt-3 flex-row gap-3">
+									<TouchableOpacity
+										className="flex-1 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3"
+										onPress={() => setShowStartPicker(true)}
+									>
+										<Text className="text-xs font-semibold uppercase tracking-[1px] text-gray-400">
+											{t("from")}
+										</Text>
+										<Text className="mt-1 font-semibold text-gray-800">
+											{customStartDate.toLocaleDateString(locale)}
+										</Text>
+									</TouchableOpacity>
+
+									<TouchableOpacity
+										className="flex-1 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3"
+										onPress={() => setShowEndPicker(true)}
+									>
+										<Text className="text-xs font-semibold uppercase tracking-[1px] text-gray-400">
+											{t("to")}
+										</Text>
+										<Text className="mt-1 font-semibold text-gray-800">
+											{customEndDate.toLocaleDateString(locale)}
+										</Text>
+									</TouchableOpacity>
+								</View>
+							) : null}
+						</View>
+
+						<View className="mt-5 rounded-3xl bg-slate-900 p-5">
+							<Text className="text-xs font-semibold uppercase tracking-[1px] text-slate-300">
+								{t("total")}
+							</Text>
+							<Text className="mt-2 text-2xl font-bold text-white">
+								{formatCurrency(reportRows.grandTotal, prefs.currency)}
+							</Text>
+						</View>
+					</View>
+				}
+				ListEmptyComponent={
+					<View className="px-5">
+						<View className="mt-12 items-center rounded-3xl border border-dashed border-gray-200 bg-white px-6 py-10">
+							<View className="mb-4 h-14 w-14 items-center justify-center rounded-full bg-gray-100">
+								<Ionicons
+									name="pie-chart-outline"
+									size={26}
+									color="#9ca3af"
+								/>
+							</View>
+							<Text className="text-center text-lg font-bold text-gray-900">
+								{t("noExpensesFound")}
+							</Text>
+							<Text className="mt-2 text-center text-gray-500">
+								{t("adjustFiltersHint")}
+							</Text>
+						</View>
+					</View>
+				}
+				renderItem={({ item }) => (
+					<View className="px-5">
+						<View className="rounded-3xl border border-gray-100 bg-white p-4">
+							<View className="flex-row items-center justify-between">
+								<View className="flex-row items-center gap-3">
+									<View className="h-11 w-11 items-center justify-center rounded-2xl bg-orange-50">
+										<Ionicons
+											name={item.icon as keyof typeof Ionicons.glyphMap}
+											size={22}
+											color="#f59e0b"
+										/>
+									</View>
+									<View>
+										<Text className="font-bold text-gray-900">
+											{item.name}
+										</Text>
+										<Text className="text-xs text-gray-500">
+											{item.percentage.toFixed(1)}%
+										</Text>
+									</View>
+								</View>
+
+								<Text className="font-bold text-gray-900">
+									{formatCurrency(item.amount, prefs.currency)}
+								</Text>
+							</View>
+
+							<View className="mt-3 h-2 overflow-hidden rounded-full bg-gray-100">
+								<View
+									className="h-full rounded-full bg-orange-400"
+									style={{ width: `${Math.min(item.percentage, 100)}%` }}
+								/>
+							</View>
+						</View>
 					</View>
 				)}
-			</ScrollView>
+			/>
 		</View>
 	);
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import * as FileSystem from "expo-file-system";
 
 export type WeekStart = "Sunday" | "Monday";
@@ -57,6 +57,7 @@ export const DEFAULT_PREFS: Prefs = {
 };
 
 const listeners = new Set<() => void>();
+let cachedPrefs: Prefs | null = null;
 
 function getPrefsFile() {
   return new FileSystem.File(FileSystem.Paths.document, "prefs.json");
@@ -207,7 +208,7 @@ function normalizePrefs(raw: Partial<Prefs> | null | undefined): Prefs {
   };
 }
 
-export function loadPrefs(): Prefs {
+function readPrefsFromDisk(): Prefs {
   try {
     const file = getPrefsFile();
     if (file.exists) {
@@ -217,10 +218,17 @@ export function loadPrefs(): Prefs {
   return DEFAULT_PREFS;
 }
 
+export function loadPrefs(): Prefs {
+  if (cachedPrefs) return cachedPrefs;
+  cachedPrefs = readPrefsFromDisk();
+  return cachedPrefs;
+}
+
 export function savePrefs(prefs: Prefs) {
   try {
     const normalized = normalizePrefs(prefs);
     getPrefsFile().write(JSON.stringify(normalized));
+    cachedPrefs = normalized;
     listeners.forEach((listener) => listener());
   } catch (e) {
     console.error("Failed to save prefs", e);
@@ -343,19 +351,21 @@ export function clearBudgetAlertHistory() {
   savePrefs({ ...current, budgetAlertHistory: [] });
 }
 
+function subscribePrefs(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
 export function usePrefs() {
-  const [prefs, setPrefs] = useState<Prefs>(() => loadPrefs());
+  return useSyncExternalStore(subscribePrefs, loadPrefs, loadPrefs);
+}
 
-  const refresh = useCallback(() => {
-    setPrefs(loadPrefs());
-  }, []);
-
-  useEffect(() => {
-    listeners.add(refresh);
-    return () => {
-      listeners.delete(refresh);
-    };
-  }, [refresh]);
-
-  return prefs;
+export function usePrefsSelector<T>(selector: (prefs: Prefs) => T) {
+  return useSyncExternalStore(
+    subscribePrefs,
+    () => selector(loadPrefs()),
+    () => selector(loadPrefs()),
+  );
 }

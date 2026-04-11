@@ -7,7 +7,7 @@ import { useHomeInsights } from "@/hooks/useHomeInsights";
 import { useI18n } from "@/hooks/useI18n";
 import { useNotifications } from "@/hooks/useNotifications";
 import { usePendingRecurringExpenses } from "@/hooks/usePendingRecurringExpenses";
-import { usePrefs } from "@/hooks/usePrefs";
+import { usePrefsSelector } from "@/hooks/usePrefs";
 import { ScrollView, Text, TouchableOpacity, View } from "@/tw";
 import { formatCurrency } from "@/utils/currency";
 import { getMonthKey } from "@/utils/months";
@@ -32,7 +32,9 @@ export default function HomeScreen() {
 	const insets = useSafeAreaInsets();
 	const router = useRouter();
 	const expenses = useExpenses();
-	const prefs = usePrefs();
+	const currency = usePrefsSelector((prefs) => prefs.currency);
+	const name = usePrefsSelector((prefs) => prefs.name);
+	const weekStart = usePrefsSelector((prefs) => prefs.weekStart);
 	const categories = useCategories();
 	const currentMonthKey = useMemo(() => getMonthKey(new Date()), []);
 	const budgets = useBudgets(currentMonthKey);
@@ -40,7 +42,7 @@ export default function HomeScreen() {
 		expenses,
 		categories,
 		budgets,
-		prefs.weekStart,
+		weekStart,
 	);
 	const { t, language } = useI18n();
 	const { unreadCount } = useNotifications();
@@ -56,7 +58,7 @@ export default function HomeScreen() {
 			now.getDate(),
 		).getTime();
 
-		const weekStartIndex = prefs.weekStart === "Monday" ? 1 : 0;
+			const weekStartIndex = weekStart === "Monday" ? 1 : 0;
 		const labels =
 			weekStartIndex === 1
 				? language === "es"
@@ -107,7 +109,7 @@ export default function HomeScreen() {
 			weekLabels: labels,
 			categoryTotals: topCats,
 		};
-	}, [expenses, categories, prefs.weekStart, language, t]);
+	}, [expenses, categories, weekStart, language, t]);
 
 	const openBudgetHistory = (filter: HistoryFilter, search?: string) => {
 		const params: Record<string, string> = { filter };
@@ -144,7 +146,7 @@ export default function HomeScreen() {
 					<View>
 						<Text className="text-gray-500">{t("welcomeBack")}</Text>
 						<Text className="text-[20px] font-bold text-gray-900">
-							{getGreeting(new Date().getHours(), t)}, {prefs.name}
+							{getGreeting(new Date().getHours(), t)}, {name}
 						</Text>
 					</View>
 				</View>
@@ -288,9 +290,9 @@ export default function HomeScreen() {
 						</Text>
 					</View>
 					<Text className="text-xl font-bold text-gray-900">
-						{formatCurrency(budgetUsage.spent, prefs.currency)}{" "}
-						<Text className="text-base font-medium text-gray-400">
-							/ {formatCurrency(budgetUsage.limit, prefs.currency)}
+							{formatCurrency(budgetUsage.spent, currency)}{" "}
+							<Text className="text-base font-medium text-gray-400">
+								/ {formatCurrency(budgetUsage.limit, currency)}
 						</Text>
 					</Text>
 					<View className="mt-3 h-2 overflow-hidden rounded-full bg-gray-100">
@@ -307,12 +309,12 @@ export default function HomeScreen() {
 					</View>
 					<Text className="mt-3 text-sm text-gray-500">
 						{budgetRemaining >= 0
-							? t("leftAmount", {
-									amount: formatCurrency(budgetRemaining, prefs.currency),
-								})
-							: t("overBudgetAmount", {
-									amount: formatCurrency(Math.abs(budgetRemaining), prefs.currency),
-								})}
+								? t("leftAmount", {
+										amount: formatCurrency(budgetRemaining, currency),
+									})
+								: t("overBudgetAmount", {
+										amount: formatCurrency(Math.abs(budgetRemaining), currency),
+									})}
 					</Text>
 					{isBudgetWarning ? (
 						<Text
@@ -362,10 +364,10 @@ export default function HomeScreen() {
 							</Text>
 						</View>
 						<Text className="font-bold text-gray-900">
-							{formatCurrency(
-								Math.abs(homeInsights.lastTransaction.amount),
-								prefs.currency,
-							)}
+								{formatCurrency(
+									Math.abs(homeInsights.lastTransaction.amount),
+									currency,
+								)}
 						</Text>
 					</View>
 				</TouchableOpacity>
@@ -410,7 +412,7 @@ export default function HomeScreen() {
 						{t("spendingTrends")}
 					</Text>
 					<Text className="mb-4 text-2xl font-bold text-gray-900">
-						{formatCurrency(weekTotal, prefs.currency)}{" "}
+							{formatCurrency(weekTotal, currency)}{" "}
 						<Text className="text-base font-normal text-gray-400">
 							{t("total")}
 						</Text>
@@ -485,7 +487,7 @@ export default function HomeScreen() {
 							</View>
 						</View>
 						<Text className="font-bold text-gray-900">
-							{formatCurrency(cat.amount, prefs.currency)}
+								{formatCurrency(cat.amount, currency)}
 						</Text>
 					</TouchableOpacity>
 				))}

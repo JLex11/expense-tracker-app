@@ -5,10 +5,10 @@ import {
     markAllNotificationsAsRead,
     markNotificationAsRead,
 } from "@/hooks/usePrefs";
-import { ScrollView, Text, TouchableOpacity, View } from "@/tw";
+import { Text, TouchableOpacity, View } from "@/tw";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { Alert } from "react-native";
+import { Alert, FlatList } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const ICON_BY_TYPE: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -105,9 +105,16 @@ export default function NotificationsScreen() {
 				</View>
 			</View>
 
-			<ScrollView contentContainerClassName="px-5 pb-24 pt-5">
-				{notifications.length === 0 ? (
-					<View key="notifications-empty" className="mt-20 items-center">
+			<FlatList
+				style={{ flex: 1 }}
+				data={notifications}
+				keyExtractor={(item) => item.id}
+				contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 20, paddingBottom: 96 }}
+				ItemSeparatorComponent={() => <View className="h-3" />}
+				initialNumToRender={8}
+				showsVerticalScrollIndicator={false}
+				ListEmptyComponent={
+					<View className="mt-20 items-center">
 						<View className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-gray-200/60">
 							<Ionicons
 								name="notifications-off-outline"
@@ -122,70 +129,64 @@ export default function NotificationsScreen() {
 							{t("noNotificationsBody")}
 						</Text>
 					</View>
-				) : (
-					<View key="notifications-list" className="gap-3 will-change-variable">
-						{notifications.map((item) => {
-							const icon = ICON_BY_TYPE[item.type] ?? "notifications-outline";
-							const isUnread = item.readAt === null;
-							const body = renderBody(item.bodyKey, item.params, item.meta);
+				}
+				renderItem={({ item }) => {
+					const icon = ICON_BY_TYPE[item.type] ?? "notifications-outline";
+					const isUnread = item.readAt === null;
+					const body = renderBody(item.bodyKey, item.params, item.meta);
 
-							return (
-								<TouchableOpacity
-									key={item.id}
-									activeOpacity={0.85}
-									onPress={() => {
-										if (item.source === "persisted" && isUnread) {
-											markNotificationAsRead(item.id);
-										}
-										if (item.actionRoute) {
-											router.push(
-												item.actionRoute as Parameters<typeof router.push>[0],
-											);
-										}
-									}}
-									className={`rounded-3xl border p-4 ${
-										isUnread
-											? "border-blue-200 bg-blue-50"
-											: "border-gray-100 bg-white"
+					return (
+						<TouchableOpacity
+							activeOpacity={0.85}
+							onPress={() => {
+								if (item.source === "persisted" && isUnread) {
+									markNotificationAsRead(item.id);
+								}
+								if (item.actionRoute) {
+									router.push(item.actionRoute as Parameters<typeof router.push>[0]);
+								}
+							}}
+							className={`rounded-3xl border p-4 ${
+								isUnread
+									? "border-blue-200 bg-blue-50"
+									: "border-gray-100 bg-white"
+							}`}
+						>
+							<View className="flex-row gap-3">
+								<View
+									className={`h-11 w-11 items-center justify-center rounded-2xl ${
+										isUnread ? "bg-blue-100" : "bg-gray-100"
 									}`}
 								>
-									<View className="flex-row gap-3">
-										<View
-											className={`h-11 w-11 items-center justify-center rounded-2xl ${
-												isUnread ? "bg-blue-100" : "bg-gray-100"
-											}`}
-										>
-											<Ionicons
-												name={icon}
-												size={22}
-												color={isUnread ? "#2563eb" : "#6b7280"}
-											/>
-										</View>
-										<View className="flex-1">
-											<View className="flex-row items-start justify-between gap-2">
-												<Text className="flex-1 text-base font-bold text-gray-900">
-													{t(item.titleKey)}
-												</Text>
-												{isUnread ? (
-													<View className="mt-1 h-2.5 w-2.5 rounded-full bg-blue-500" />
-												) : null}
-											</View>
-
-											<Text className="mt-1 text-sm leading-5 text-gray-600">
-												{body}
-											</Text>
-
-											<Text className="mt-2 text-xs text-gray-400">
-												{new Date(item.createdAt).toLocaleString()}
-											</Text>
-										</View>
+									<Ionicons
+										name={icon}
+										size={22}
+										color={isUnread ? "#2563eb" : "#6b7280"}
+									/>
+								</View>
+								<View className="flex-1">
+									<View className="flex-row items-start justify-between gap-2">
+										<Text className="flex-1 text-base font-bold text-gray-900">
+											{t(item.titleKey)}
+										</Text>
+										{isUnread ? (
+											<View className="mt-1 h-2.5 w-2.5 rounded-full bg-blue-500" />
+										) : null}
 									</View>
-								</TouchableOpacity>
-							);
-						})}
-					</View>
-				)}
-			</ScrollView>
+
+									<Text className="mt-1 text-sm leading-5 text-gray-600">
+										{body}
+									</Text>
+
+									<Text className="mt-2 text-xs text-gray-400">
+										{new Date(item.createdAt).toLocaleString()}
+									</Text>
+								</View>
+							</View>
+						</TouchableOpacity>
+					);
+				}}
+			/>
 		</View>
 	);
 }

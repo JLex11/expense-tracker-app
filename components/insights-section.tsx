@@ -1,6 +1,6 @@
 import type { HomeInsightsResult } from "@/hooks/useHomeInsights";
 import { useI18n } from "@/hooks/useI18n";
-import { usePrefs } from "@/hooks/usePrefs";
+import { usePrefsSelector } from "@/hooks/usePrefs";
 import { ScrollView, Text, View } from "@/tw";
 import { formatCurrency } from "@/utils/currency";
 import { Ionicons } from "@expo/vector-icons";
@@ -26,7 +26,7 @@ const chipColors = {
 
 export default function InsightsSection({ insights }: InsightsSectionProps) {
 	const { t } = useI18n();
-	const prefs = usePrefs();
+	const currency = usePrefsSelector((prefs) => prefs.currency);
 
 	const chips: InsightChip[] = [];
 
@@ -94,7 +94,7 @@ export default function InsightsSection({ insights }: InsightsSectionProps) {
 			key: "lastTx",
 			icon: insights.lastTransaction.categoryIcon as keyof typeof Ionicons.glyphMap,
 			text: t("insightLastExpense", {
-				amount: formatCurrency(Math.abs(insights.lastTransaction.amount), prefs.currency),
+				amount: formatCurrency(Math.abs(insights.lastTransaction.amount), currency),
 				category: insights.lastTransaction.categoryName,
 				time: insights.lastTransaction.timeAgo,
 			}),
@@ -109,8 +109,8 @@ export default function InsightsSection({ insights }: InsightsSectionProps) {
 			key: "todayVsYesterday",
 			icon: "swap-horizontal",
 			text: t("insightTodayVsYesterday", {
-				today: formatCurrency(insights.todayTotal, prefs.currency),
-				yesterday: formatCurrency(insights.yesterdayTotal, prefs.currency),
+				today: formatCurrency(insights.todayTotal, currency),
+				yesterday: formatCurrency(insights.yesterdayTotal, currency),
 			}),
 			color: todayMore ? "red" : "green",
 		});

@@ -159,10 +159,6 @@ export default function ExpenseForm({
 			height: interpolate(progress, [0, 1], [EXPANDED_HEIGHT, COLLAPSED_HEIGHT]),
 			paddingTop: interpolate(progress, [0, 1], [16, 8]),
 			paddingBottom: interpolate(progress, [0, 1], [40, 8]),
-			borderBottomWidth: interpolate(progress, [0, 1], [0, 1]),
-			borderBottomColor: "rgba(229, 231, 235, 1)",
-			shadowOpacity: interpolate(progress, [0.5, 1], [0, 0.06], "clamp"),
-			elevation: interpolate(progress, [0.5, 1], [0, 3], "clamp"),
 		};
 	});
 
@@ -402,9 +398,7 @@ const styles = StyleSheet.create({
 		overflow: "hidden",
 		zIndex: 10,
 		paddingHorizontal: 20,
-		shadowColor: "#000",
-		shadowOffset: { width: 0, height: 2 },
-		shadowRadius: 4,
+		borderBottomColor: "rgba(229, 231, 235, 1)",
 	},
 	expandedWrapper: {
 		position: "absolute",
