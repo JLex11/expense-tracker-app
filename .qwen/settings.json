@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls *)",
+      "Bash(rm *)",
+      "Bash(bunx *)",
+      "Bash(npm view *)"
+    ]
+  },
+  "$version": 3
+}
