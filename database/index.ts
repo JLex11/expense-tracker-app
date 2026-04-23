@@ -4,6 +4,7 @@ import SQLiteAdapter from "@nozbe/watermelondb/adapters/sqlite";
 import Budget from "./models/Budget";
 import Category from "./models/Category";
 import Expense from "./models/Expense";
+import ReceiptScanJob from "./models/ReceiptScanJob";
 import RecurringExpenseRule from "./models/RecurringExpenseRule";
 import { migrations } from "./migrations";
 import { SEED_CATEGORIES } from "./seedCategories";
@@ -57,6 +58,8 @@ async function migrateLegacyIdsIfNeeded() {
 	const sqls: Array<[string, (string | number | null)[]]> = [];
 	const categoryIdMap = new Map<string, string>();
 	const ruleIdMap = new Map<string, string>();
+	const deletedCategoryIds = new Set<string>();
+	const existingCategoryIds = new Set(categories.map((category) => category.id));
 	const usedCategoryTargetIds = new Set<string>();
 	const seedCategoryByName = new Map(
 		SEED_CATEGORIES.map((seed) => [normalizeCategoryName(seed.name), seed]),
@@ -69,12 +72,17 @@ async function migrateLegacyIdsIfNeeded() {
 		);
 		let targetId = category.id;
 
-		if (
-			seedCategory &&
-			seedCategory.icon === category.icon &&
-			!usedCategoryTargetIds.has(seedCategory.id)
-		) {
-			targetId = seedCategory.id;
+		if (seedCategory && seedCategory.icon === category.icon) {
+			const seedIdBelongsToAnotherRow =
+				category.id !== seedCategory.id && existingCategoryIds.has(seedCategory.id);
+			if (seedIdBelongsToAnotherRow) {
+				categoryIdMap.set(category.id, seedCategory.id);
+				deletedCategoryIds.add(category.id);
+				continue;
+			}
+			if (!usedCategoryTargetIds.has(seedCategory.id)) {
+				targetId = seedCategory.id;
+			}
 		} else if (!isUuid(category.id)) {
 			targetId = generateUuid();
 		}
@@ -152,6 +160,13 @@ async function migrateLegacyIdsIfNeeded() {
 				getTimestampMs(raw.updated_at, now),
 				expense.id,
 			],
+		]);
+	}
+
+	for (const deletedCategoryId of deletedCategoryIds) {
+		sqls.push([
+			`delete from "categories" where "id" = ?`,
+			[deletedCategoryId],
 		]);
 	}
 
@@ -269,7 +284,7 @@ const adapter = createAdapter();
 
 export const database = new Database({
 	adapter,
-	modelClasses: [Budget, Category, Expense, RecurringExpenseRule],
+	modelClasses: [Budget, Category, Expense, ReceiptScanJob, RecurringExpenseRule],
 });
 
 export const seedCategories = async () => {

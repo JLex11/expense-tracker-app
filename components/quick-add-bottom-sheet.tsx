@@ -3,6 +3,7 @@ import { useQuickAdd } from "@/contexts/quick-add";
 import { useCategories } from "@/hooks/useCategories";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/hooks/usePrefs";
+import { useReceiptScannerFlow } from "@/hooks/useReceiptScannerFlow";
 import { createExpenseWithOptionalRecurrence } from "@/services/expenses";
 import { Text, TouchableOpacity, View } from "@/tw";
 import type { PaymentMethod, RecurrenceUnit, RecurringRuleInput } from "@/types/expenses";
@@ -15,6 +16,7 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
     Alert,
+    ActivityIndicator,
     FlatList,
     Keyboard,
     KeyboardAvoidingView,
@@ -99,6 +101,10 @@ export default function QuickAddDialog() {
 			setShowDatePicker(false);
 		}, 200);
 	}, [close]);
+
+	const { isScanningReceipt, startReceiptScan } = useReceiptScannerFlow({
+		onQueued: resetAndClose,
+	});
 
 	const goNext = useCallback(() => {
 		if (step === 0) {
@@ -241,6 +247,25 @@ export default function QuickAddDialog() {
 									/>
 								))}
 							</View>
+
+							{step === 0 && (
+								<TouchableOpacity
+									className="mb-4 min-h-11 flex-row items-center justify-center rounded-2xl bg-gray-950 px-4"
+									onPress={() => void startReceiptScan()}
+									disabled={isScanningReceipt}
+								>
+									{isScanningReceipt ? (
+										<ActivityIndicator color="#ffffff" />
+									) : (
+										<>
+											<Ionicons name="scan-outline" size={18} color="#ffffff" />
+											<Text className="ml-2 text-sm font-bold text-white">
+												{t("scanReceipt")}
+											</Text>
+										</>
+									)}
+								</TouchableOpacity>
+							)}
 
 							{/* Step 0: Amount + Payment */}
 							{step === 0 && (

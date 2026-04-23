@@ -70,5 +70,31 @@ export const migrations = schemaMigrations({
 				`),
 			],
 		},
+		{
+			toVersion: 4,
+			steps: [
+				createTable({
+					name: "receipt_scan_jobs",
+					columns: [
+						{ name: "local_image_uri", type: "string" },
+						{ name: "status", type: "string", isIndexed: true },
+						{
+							name: "remote_job_id",
+							type: "string",
+							isOptional: true,
+							isIndexed: true,
+						},
+						{ name: "result_json", type: "string", isOptional: true },
+						{ name: "error_message", type: "string", isOptional: true },
+						{ name: "attempts", type: "number" },
+						{ name: "created_at", type: "number" },
+						{ name: "updated_at", type: "number" },
+					],
+				}),
+				unsafeExecuteSql(`
+					create index if not exists "receipt_scan_jobs_status_updated_idx" on "receipt_scan_jobs" ("status", "updated_at");
+				`),
+			],
+		},
 	],
 });

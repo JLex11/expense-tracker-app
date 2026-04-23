@@ -20,6 +20,10 @@ import { savePrefs, usePrefs } from "@/hooks/usePrefs";
 import { useSync } from "@/hooks/useSync";
 import { isLoggedIn } from "@/services/auth";
 import { evaluateBudgetAlerts } from "@/services/budget-alerts";
+import {
+	processReceiptQueue,
+	registerReceiptScanBackgroundTask,
+} from "@/services/receipt-scans";
 import { Text, TouchableOpacity, View } from "@/tw";
 import { exportExpensesCSV } from "@/utils/export-csv";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -54,6 +58,13 @@ export default function RootLayout() {
 				icon:
 					Platform.OS === "ios" ? "symbol:plus.circle.fill" : "shortcut_add",
 				params: { href: "/(tabs)/transact" },
+			},
+			{
+				id: "scan_receipt",
+				title: t("scanReceipt"),
+				icon:
+					Platform.OS === "ios" ? "symbol:doc.viewfinder" : "shortcut_add",
+				params: { href: "/(tabs)/transact?scanReceipt=1" },
 			},
 			{
 				id: "view_budget",
@@ -179,7 +190,20 @@ export default function RootLayout() {
 		} catch (error) {
 			console.error("Failed to evaluate budget alerts", error);
 		}
+
+		try {
+			await processReceiptQueue({
+				locale: prefsRef.current.language,
+				currency: prefsRef.current.currency,
+			});
+		} catch (error) {
+			console.error("Failed to process receipt scan queue", error);
+		}
 	}, [syncNow]);
+
+	useEffect(() => {
+		void registerReceiptScanBackgroundTask();
+	}, []);
 
 	useEffect(() => {
 		if (Platform.OS === "web") {
@@ -230,6 +254,10 @@ export default function RootLayout() {
 
 			if (becameActive) {
 				void syncAppState();
+				void processReceiptQueue({
+					locale: prefsRef.current.language,
+					currency: prefsRef.current.currency,
+				});
 			}
 		});
 
@@ -248,6 +276,11 @@ export default function RootLayout() {
 						/>
 						<Stack.Screen
 							name="reports/categories"
+							options={{ headerShown: false }}
+						/>
+						<Stack.Screen name="receipts/index" options={{ headerShown: false }} />
+						<Stack.Screen
+							name="receipts/review/[id]"
 							options={{ headerShown: false }}
 						/>
 						<Stack.Screen

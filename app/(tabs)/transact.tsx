@@ -3,28 +3,35 @@ import RecurrenceEditor from "@/components/recurrence-editor";
 import { useCategories } from "@/hooks/useCategories";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/hooks/usePrefs";
+import { useReadyReceiptScanCount } from "@/hooks/useReceiptScanJobs";
+import { useReceiptScannerFlow } from "@/hooks/useReceiptScannerFlow";
 import { createExpenseWithOptionalRecurrence } from "@/services/expenses";
 import type {
   PaymentMethod,
   RecurrenceUnit,
   RecurringRuleInput,
 } from "@/types/expenses";
-import { View } from "@/tw";
+import { Text, TouchableOpacity, View } from "@/tw";
 import { parseRecurrenceInterval } from "@/utils/recurrence";
+import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
-import { Alert } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function TransactScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { recurring } = useLocalSearchParams<{
+  const { recurring, scanReceipt } = useLocalSearchParams<{
     recurring?: string | string[];
+    scanReceipt?: string | string[];
   }>();
   const { t, locale } = useI18n();
   const prefs = usePrefs();
   const categories = useCategories();
+  const readyReceiptCount = useReadyReceiptScanCount();
+  const { isScanningReceipt, startReceiptScan } = useReceiptScannerFlow();
+  const hasAutoOpenedReceiptScanRef = useRef(false);
 
   const [amount, setAmount] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -42,6 +49,14 @@ export default function TransactScreen() {
       setIsRecurring(true);
     }
   }, [recurring]);
+
+  useEffect(() => {
+    const raw = Array.isArray(scanReceipt) ? scanReceipt[0] : scanReceipt;
+    if ((raw === "1" || raw === "true") && !hasAutoOpenedReceiptScanRef.current) {
+      hasAutoOpenedReceiptScanRef.current = true;
+      void startReceiptScan();
+    }
+  }, [scanReceipt, startReceiptScan]);
 
   const isFormValid =
     !!amount &&
@@ -111,6 +126,37 @@ export default function TransactScreen() {
 
   return (
     <View className="flex-1 bg-white" style={{ paddingTop: insets.top + 20 }}>
+      <View className="flex-row items-center gap-2 px-5 pb-2">
+        <TouchableOpacity
+          className="min-h-11 flex-1 flex-row items-center justify-center rounded-2xl bg-gray-950 px-4"
+          onPress={() => void startReceiptScan()}
+          disabled={isScanningReceipt}
+        >
+          {isScanningReceipt ? (
+            <ActivityIndicator color="#ffffff" />
+          ) : (
+            <>
+              <Ionicons name="scan-outline" size={18} color="#ffffff" />
+              <Text className="ml-2 text-sm font-bold text-white">
+                {t("scanReceipt")}
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          className="relative min-h-11 flex-row items-center justify-center rounded-2xl bg-gray-100 px-4"
+          onPress={() => router.push("/receipts" as any)}
+        >
+          <Ionicons name="receipt-outline" size={18} color="#111827" />
+          {readyReceiptCount > 0 && (
+            <View className="absolute -right-1 -top-1 min-h-5 min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1">
+              <Text className="text-[11px] font-bold text-white">
+                {readyReceiptCount}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
       <ExpenseForm
         mode="create"
         currency={prefs.currency}

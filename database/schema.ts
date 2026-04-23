@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from "@nozbe/watermelondb";
 
 export default appSchema({
-	version: 3,
+	version: 4,
 	tables: [
 		tableSchema({
 			name: "categories",
@@ -50,6 +50,19 @@ export default appSchema({
 				{ name: "category_id", type: "string", isIndexed: true },
 				{ name: "month_key", type: "string", isIndexed: true },
 				{ name: "limit_amount", type: "number" },
+				{ name: "created_at", type: "number" },
+				{ name: "updated_at", type: "number" },
+			],
+		}),
+		tableSchema({
+			name: "receipt_scan_jobs",
+			columns: [
+				{ name: "local_image_uri", type: "string" },
+				{ name: "status", type: "string", isIndexed: true },
+				{ name: "remote_job_id", type: "string", isOptional: true, isIndexed: true },
+				{ name: "result_json", type: "string", isOptional: true },
+				{ name: "error_message", type: "string", isOptional: true },
+				{ name: "attempts", type: "number" },
 				{ name: "created_at", type: "number" },
 				{ name: "updated_at", type: "number" },
 			],

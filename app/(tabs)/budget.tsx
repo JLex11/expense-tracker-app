@@ -4,8 +4,10 @@ import { useBudgets } from "@/hooks/useBudgets";
 import { useCategories } from "@/hooks/useCategories";
 import { useExpenses } from "@/hooks/useExpenses";
 import { useI18n } from "@/hooks/useI18n";
+import { usePendingRecurringExpenses } from "@/hooks/usePendingRecurringExpenses";
 import { usePrefsSelector } from "@/hooks/usePrefs";
 import { deleteBudget, upsertBudget } from "@/services/budgets";
+import { confirmPendingExpense, skipPendingExpense } from "@/services/expenses";
 import { ScrollView, Text, TextInput, TouchableOpacity, View } from "@/tw";
 import { formatCurrency, getCurrencySymbol } from "@/utils/currency";
 import {
@@ -134,6 +136,7 @@ export default function BudgetScreen() {
 	const { t, language, locale } = useI18n();
 	const expenses = useExpenses();
 	const categories = useCategories();
+	const pendingRecurringExpenses = usePendingRecurringExpenses();
 
 	const [filter, setFilter] = useState<FilterType>(() =>
 		normalizeHistoryFilter(filterParam),
@@ -156,6 +159,9 @@ export default function BudgetScreen() {
 	const [customEndDate, setCustomEndDate] = useState(() => new Date());
 	const [showCustomStartPicker, setShowCustomStartPicker] = useState(false);
 	const [showCustomEndPicker, setShowCustomEndPicker] = useState(false);
+	const [resolvingPendingExpenseId, setResolvingPendingExpenseId] = useState<
+		string | null
+	>(null);
 	const deferredSearchQuery = useDeferredValue(searchQuery);
 
 	const budgets = useBudgets(selectedMonthKey);
@@ -433,6 +439,34 @@ export default function BudgetScreen() {
 		]);
 	};
 
+	const handleConfirmPendingExpense = async (expenseId: string) => {
+		setResolvingPendingExpenseId(expenseId);
+		try {
+			await confirmPendingExpense(expenseId);
+		} catch (error) {
+			console.error(error);
+			Alert.alert(t("error"), t("couldNotConfirmExpense"));
+		} finally {
+			setResolvingPendingExpenseId((current) =>
+				current === expenseId ? null : current,
+			);
+		}
+	};
+
+	const handleSkipPendingExpense = async (expenseId: string) => {
+		setResolvingPendingExpenseId(expenseId);
+		try {
+			await skipPendingExpense(expenseId);
+		} catch (error) {
+			console.error(error);
+			Alert.alert(t("error"), t("couldNotSkipExpense"));
+		} finally {
+			setResolvingPendingExpenseId((current) =>
+				current === expenseId ? null : current,
+			);
+		}
+	};
+
 	const totalRemaining = budgetSummary.totalBudgeted - budgetSummary.totalSpent;
 	const listHeader = (
 		<View className="px-5 pb-6 pt-4">
@@ -542,6 +576,97 @@ export default function BudgetScreen() {
 		if (section.type === "history-controls") {
 			return (
 				<View className="mt-6 border-t border-gray-100 bg-white px-5 pb-4 pt-6">
+					{pendingRecurringExpenses.length > 0 ? (
+						<View className="mb-6 rounded-3xl border border-amber-200 bg-amber-50 p-4">
+							<Text className="text-[12px] font-bold uppercase tracking-[2px] text-amber-700">
+								{t("pendingRecurring")}
+							</Text>
+							<Text className="mt-2 text-sm text-amber-800">
+								{t("pendingRecurringBody")}
+							</Text>
+
+							<View className="mt-4 gap-3">
+								{pendingRecurringExpenses.map((expense) => {
+									const category = categoryMap.get(expense.categoryId);
+									const isResolving = resolvingPendingExpenseId === expense.id;
+									const dateLabel = new Date(expense.date).toLocaleDateString(
+										locale,
+										{
+											month: "short",
+											day: "numeric",
+											hour: "2-digit",
+											minute: "2-digit",
+										},
+									);
+
+									return (
+										<View
+											key={expense.id}
+											className="rounded-2xl border border-amber-100 bg-white p-3"
+										>
+											<View className="flex-row items-start justify-between gap-2">
+												<View className="flex-1">
+													<Text className="font-bold text-gray-900">
+														{category?.name || t("unknown")}
+													</Text>
+													<Text className="mt-1 text-xs text-gray-500">
+														{dateLabel}
+													</Text>
+												</View>
+												<TouchableOpacity
+													onPress={() =>
+														router.push({
+															pathname: "/movement/[id]",
+															params: { id: expense.id },
+														})
+													}
+													className="rounded-full bg-amber-100 p-2"
+												>
+													<Ionicons
+														name="open-outline"
+														size={16}
+														color="#92400e"
+													/>
+												</TouchableOpacity>
+											</View>
+
+											<Text className="mt-3 text-lg font-bold text-gray-900">
+												{formatCurrency(Math.abs(expense.amount), currency)}
+											</Text>
+
+											<View className="mt-3 flex-row gap-2">
+												<TouchableOpacity
+													disabled={isResolving}
+													onPress={() => void handleConfirmPendingExpense(expense.id)}
+													className={`flex-1 items-center rounded-xl py-2.5 ${
+														isResolving ? "bg-emerald-200" : "bg-emerald-500"
+													}`}
+												>
+													<Text className="font-semibold text-white">
+														{isResolving ? `${t("save")}...` : t("yesSpentIt")}
+													</Text>
+												</TouchableOpacity>
+												<TouchableOpacity
+													disabled={isResolving}
+													onPress={() => void handleSkipPendingExpense(expense.id)}
+													className={`flex-1 items-center rounded-xl border py-2.5 ${
+														isResolving
+															? "border-slate-300 bg-slate-100"
+															: "border-slate-300 bg-white"
+													}`}
+												>
+													<Text className="font-semibold text-slate-700">
+														{t("no")}
+													</Text>
+												</TouchableOpacity>
+											</View>
+										</View>
+									);
+								})}
+							</View>
+						</View>
+					) : null}
+
 					<Text className="text-2xl font-bold text-gray-900">
 						{t("historyTitle")}
 					</Text>

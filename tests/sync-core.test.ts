@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mockSynchronize = vi.fn();
+const mocks = vi.hoisted(() => ({
+  synchronize: vi.fn(),
+}));
 
 vi.mock("@nozbe/watermelondb/sync", () => ({
-  synchronize: mockSynchronize,
+  synchronize: mocks.synchronize,
 }));
 
 vi.mock("@/database", () => ({
@@ -26,7 +28,7 @@ const originalFetch = globalThis.fetch;
 describe("sync core", () => {
   beforeEach(() => {
     __resetSyncForTests();
-    mockSynchronize.mockReset();
+    mocks.synchronize.mockReset();
     vi.restoreAllMocks();
     globalThis.fetch = originalFetch;
   });
@@ -36,7 +38,7 @@ describe("sync core", () => {
       "Sync requires an authenticated Bearer token.",
     );
 
-    expect(mockSynchronize).not.toHaveBeenCalled();
+    expect(mocks.synchronize).not.toHaveBeenCalled();
     expect(getSyncStateSnapshot().isSyncing).toBe(false);
     expect(getSyncStateSnapshot().error?.message).toContain("Bearer token");
   });
@@ -148,7 +150,7 @@ describe("sync core", () => {
         text: async () => "",
       });
 
-    mockSynchronize.mockImplementation(
+    mocks.synchronize.mockImplementation(
       async ({
         pullChanges,
         pushChanges,
@@ -307,7 +309,7 @@ describe("sync core", () => {
       resolveSync = resolve;
     });
 
-    mockSynchronize.mockImplementation(
+    mocks.synchronize.mockImplementation(
       async ({
         pullChanges,
         pushChanges,
@@ -331,7 +333,7 @@ describe("sync core", () => {
     const [syncedAtA, syncedAtB] = await Promise.all([runA, runB]);
 
     expect(syncedAtA).toBe(syncedAtB);
-    expect(mockSynchronize).toHaveBeenCalledTimes(1);
+    expect(mocks.synchronize).toHaveBeenCalledTimes(1);
     expect(getSyncStateSnapshot().isSyncing).toBe(false);
   });
 });

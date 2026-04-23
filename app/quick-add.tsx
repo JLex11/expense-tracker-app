@@ -2,6 +2,7 @@ import RecurrenceEditor from "@/components/recurrence-editor";
 import { useCategories } from "@/hooks/useCategories";
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/hooks/usePrefs";
+import { useReceiptScannerFlow } from "@/hooks/useReceiptScannerFlow";
 import { createExpenseWithOptionalRecurrence } from "@/services/expenses";
 import { Text, TouchableOpacity, View } from "@/tw";
 import type {
@@ -17,6 +18,7 @@ import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   Keyboard,
@@ -94,6 +96,9 @@ export default function QuickAddScreen() {
       router.replace("/(tabs)");
     }
   }, [router]);
+  const { isScanningReceipt, startReceiptScan } = useReceiptScannerFlow({
+    onQueued: handleClose,
+  });
 
   const goNext = useCallback(() => {
     if (step === 0) {
@@ -231,6 +236,25 @@ export default function QuickAddScreen() {
                 />
               ))}
             </View>
+
+            {step === 0 && (
+              <TouchableOpacity
+                className="mb-4 min-h-11 flex-row items-center justify-center rounded-2xl bg-gray-950 px-4"
+                onPress={() => void startReceiptScan()}
+                disabled={isScanningReceipt}
+              >
+                {isScanningReceipt ? (
+                  <ActivityIndicator color="#ffffff" />
+                ) : (
+                  <>
+                    <Ionicons name="scan-outline" size={18} color="#ffffff" />
+                    <Text className="ml-2 text-sm font-bold text-white">
+                      {t("scanReceipt")}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
 
             {/* Step 0: Amount + Payment */}
             {step === 0 && (

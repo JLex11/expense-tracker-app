@@ -144,6 +144,11 @@ describe("sync payload adapters", () => {
     const result = normalizePullResponse({
       changes: {
         expenses: { created: [], updated: [], deleted: [] },
+        receipt_scan_jobs: {
+          created: [{ id: "local-job-1", status: "queued" }],
+          updated: [],
+          deleted: [],
+        },
       },
       timestamp: 123,
     });
@@ -172,6 +177,7 @@ describe("sync payload adapters", () => {
       updated: [],
       deleted: [],
     });
+    expect(changes.receipt_scan_jobs).toBeUndefined();
   });
 
   it("serializes local changes for the API and strips Watermelon internals", () => {
@@ -233,6 +239,18 @@ describe("sync payload adapters", () => {
         ],
         deleted: [],
       },
+      receipt_scan_jobs: {
+        created: [
+          {
+            id: "local-job-1",
+            local_image_uri: "file:///tmp/receipt.jpg",
+            status: "queued",
+            attempts: 0,
+          },
+        ],
+        updated: [],
+        deleted: [],
+      },
     } as any);
 
     expect(result.expenses.created[0]).toEqual({
@@ -276,6 +294,7 @@ describe("sync payload adapters", () => {
       updated: [],
       deleted: [],
     });
+    expect((result as any).receipt_scan_jobs).toBeUndefined();
   });
 
   it("rejects malformed pull payloads early", () => {
