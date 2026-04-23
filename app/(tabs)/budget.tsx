@@ -1,27 +1,27 @@
-import { database } from "@/database";
-import type Expense from "@/database/models/Expense";
-import { useBudgets } from "@/hooks/useBudgets";
-import { useCategories } from "@/hooks/useCategories";
-import { useExpenses } from "@/hooks/useExpenses";
-import { useI18n } from "@/hooks/useI18n";
-import { usePendingRecurringExpenses } from "@/hooks/usePendingRecurringExpenses";
-import { usePrefsSelector } from "@/hooks/usePrefs";
-import { deleteBudget, upsertBudget } from "@/services/budgets";
-import { confirmPendingExpense, skipPendingExpense } from "@/services/expenses";
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from "@/tw";
-import { formatCurrency, getCurrencySymbol } from "@/utils/currency";
+import { database } from "@/database"
+import type Expense from "@/database/models/Expense"
+import { useBudgets } from "@/hooks/useBudgets"
+import { useCategories } from "@/hooks/useCategories"
+import { useExpenses } from "@/hooks/useExpenses"
+import { useI18n } from "@/hooks/useI18n"
+import { usePendingRecurringExpenses } from "@/hooks/usePendingRecurringExpenses"
+import { usePrefsSelector } from "@/hooks/usePrefs"
+import { deleteBudget, upsertBudget } from "@/services/budgets"
+import { confirmPendingExpense, skipPendingExpense } from "@/services/expenses"
+import { ScrollView, Text, TextInput, TouchableOpacity, View } from "@/tw"
+import { formatCurrency, getCurrencySymbol } from "@/utils/currency"
 import {
     formatMonthLabel,
     getMonthBounds,
     getMonthKey,
     shiftMonthKey,
-} from "@/utils/months";
-import { Ionicons } from "@expo/vector-icons";
-import DateTimePicker from "@react-native-community/datetimepicker";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { Alert, Modal, Platform, SectionList } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+} from "@/utils/months"
+import { Ionicons } from "@expo/vector-icons"
+import DateTimePicker from "@react-native-community/datetimepicker"
+import { useLocalSearchParams, useRouter } from "expo-router"
+import { useDeferredValue, useEffect, useMemo, useState } from "react"
+import { Alert, Modal, Platform, SectionList } from "react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 type FilterType = "today" | "week" | "month" | "custom";
 
@@ -66,7 +66,10 @@ type HistoryControlsSection = {
 	data: HistoryControlsItem[];
 };
 
-type ScreenSection = BudgetSection | HistoryControlsSection | HistoryGroupSection;
+type ScreenSection =
+	| BudgetSection
+	| HistoryControlsSection
+	| HistoryGroupSection;
 type ScreenItem = BudgetSectionItem | Expense | HistoryControlsItem;
 
 function normalizeHistoryFilter(
@@ -546,11 +549,7 @@ export default function BudgetScreen() {
 		</View>
 	);
 
-	const renderSectionHeader = ({
-		section,
-	}: {
-		section: ScreenSection;
-	}) => {
+	const renderSectionHeader = ({ section }: { section: ScreenSection }) => {
 		if (section.type === "budget") {
 			return (
 				<View className="mt-6 px-5">
@@ -637,7 +636,9 @@ export default function BudgetScreen() {
 											<View className="mt-3 flex-row gap-2">
 												<TouchableOpacity
 													disabled={isResolving}
-													onPress={() => void handleConfirmPendingExpense(expense.id)}
+													onPress={() =>
+														void handleConfirmPendingExpense(expense.id)
+													}
 													className={`flex-1 items-center rounded-xl py-2.5 ${
 														isResolving ? "bg-emerald-200" : "bg-emerald-500"
 													}`}
@@ -648,7 +649,9 @@ export default function BudgetScreen() {
 												</TouchableOpacity>
 												<TouchableOpacity
 													disabled={isResolving}
-													onPress={() => void handleSkipPendingExpense(expense.id)}
+													onPress={() =>
+														void handleSkipPendingExpense(expense.id)
+													}
 													className={`flex-1 items-center rounded-xl border py-2.5 ${
 														isResolving
 															? "border-slate-300 bg-slate-100"
@@ -747,11 +750,7 @@ export default function BudgetScreen() {
 					{filteredExpenses.length === 0 ? (
 						<View className="items-center justify-center px-10 py-20">
 							<View className="mb-4 h-20 w-20 items-center justify-center rounded-full bg-gray-50">
-								<Ionicons
-									name="receipt-outline"
-									size={40}
-									color="#d1d5db"
-								/>
+								<Ionicons name="receipt-outline" size={40} color="#d1d5db" />
 							</View>
 							<Text className="text-center text-lg font-medium text-gray-500">
 								{t("noExpensesFound")}
@@ -792,11 +791,7 @@ export default function BudgetScreen() {
 				return (
 					<View className="mx-5 items-center rounded-3xl border border-dashed border-gray-200 bg-white px-6 py-10">
 						<View className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-blue-50">
-							<Ionicons
-								name="pie-chart-outline"
-								size={28}
-								color="#3b82f6"
-							/>
+							<Ionicons name="pie-chart-outline" size={28} color="#3b82f6" />
 						</View>
 						<Text className="text-center text-lg font-bold text-gray-900">
 							{t("noBudgetsYet")}
@@ -923,7 +918,8 @@ export default function BudgetScreen() {
 					<View className="mr-4 h-12 w-12 items-center justify-center rounded-2xl bg-orange-50">
 						<Ionicons
 							name={
-								(category?.icon || "help-circle") as keyof typeof Ionicons.glyphMap
+								(category?.icon ||
+									"help-circle") as keyof typeof Ionicons.glyphMap
 							}
 							size={24}
 							color="#f59e0b"
