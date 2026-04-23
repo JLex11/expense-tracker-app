@@ -103,7 +103,7 @@ export default function ReceiptScansScreen() {
 						typeof result?.amount === "number" && result.amount > 0
 							? new Intl.NumberFormat(locale, {
 									style: "currency",
-									currency: result.currency || prefs.currency,
+									currency: prefs.currency,
 								}).format(result.amount)
 							: null;
 					const isReady = item.status === "ready";
