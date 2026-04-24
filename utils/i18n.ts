@@ -115,6 +115,7 @@ const translations: Record<AppLanguage, Record<string, TranslationValue>> = {
 		receiptScansSubtitle: "Revisa los borradores cuando estén listos.",
 		receiptScanSaving: "Guardando escaneo...",
 		receiptScanQueuedTitle: "Escaneo guardado",
+		receiptScanQueuedBadge: "En cola",
 		receiptScanQueuedBody:
 			"Lo leeremos en segundo plano. Puedes escanear otra factura o seguir usando la app.",
 		receiptScanQueue: "Ver cola",
@@ -426,6 +427,7 @@ const translations: Record<AppLanguage, Record<string, TranslationValue>> = {
 		receiptScansSubtitle: "Review drafts once they are ready.",
 		receiptScanSaving: "Saving scan...",
 		receiptScanQueuedTitle: "Scan saved",
+		receiptScanQueuedBadge: "Queued",
 		receiptScanQueuedBody:
 			"We will read it in the background. You can scan another receipt or keep using the app.",
 		receiptScanQueue: "View queue",

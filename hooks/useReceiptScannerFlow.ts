@@ -1,13 +1,12 @@
 import { useI18n } from "@/hooks/useI18n";
 import { usePrefs } from "@/hooks/usePrefs";
+import { receiptScanQueuedPromptGlobal } from "@/components/receipt-scan-queued-prompt";
 import { enqueueReceiptScan, processReceiptQueue } from "@/services/receipt-scans";
 import { scanReceiptDocument } from "@/services/receipt-scanner";
-import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { Alert } from "react-native";
 
 export function useReceiptScannerFlow(options?: { onQueued?: () => void }) {
-	const router = useRouter();
 	const { t, locale } = useI18n();
 	const prefs = usePrefs();
 	const [isScanningReceipt, setIsScanningReceipt] = useState(false);
@@ -26,18 +25,11 @@ export function useReceiptScannerFlow(options?: { onQueued?: () => void }) {
 			});
 			onQueued?.();
 			void processReceiptQueue({ locale, currency: prefs.currency });
-
-			Alert.alert(t("receiptScanQueuedTitle"), t("receiptScanQueuedBody"), [
-				{
-					text: t("scanAnotherReceipt"),
-					onPress: () => void startReceiptScan(),
-				},
-				{
-					text: t("receiptScanQueue"),
-					onPress: () => router.push("/receipts" as any),
-				},
-				{ text: t("later"), style: "cancel" },
-			]);
+			setTimeout(() => {
+				receiptScanQueuedPromptGlobal.open?.({
+					onScanAnother: () => void startReceiptScan(),
+				});
+			}, onQueued ? 220 : 0);
 		} catch (error) {
 			console.error(error);
 			Alert.alert(
@@ -49,7 +41,7 @@ export function useReceiptScannerFlow(options?: { onQueued?: () => void }) {
 		} finally {
 			setIsScanningReceipt(false);
 		}
-	}, [locale, onQueued, prefs.currency, router, t]);
+	}, [locale, onQueued, prefs.currency, t]);
 
 	return { isScanningReceipt, startReceiptScan };
 }

@@ -3,6 +3,7 @@ import {
     DefaultTheme,
     ThemeProvider,
 } from "@react-navigation/native";
+import ReceiptScanQueuedPrompt from "@/components/receipt-scan-queued-prompt";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as QuickActions from "expo-quick-actions";
 import { useQuickActionRouting } from "expo-quick-actions/router";
@@ -326,6 +327,7 @@ export default function RootLayout() {
 						</View>
 					)}
 				</View>
+				<ReceiptScanQueuedPrompt />
 				<StatusBar style="auto" />
 			</ThemeProvider>
 		</SafeAreaProvider>
